@@ -51,11 +51,53 @@ The core challenge is linking a spoken phrase (like *"my lab results from last T
 
 ---
 
-###  API Documentation & Examples
+###  API Specification (Contractual)
+
+The Mesh API enforces a strict Pydantic-validated contract. All timestamps follow ISO 8601.
+
+#### Request Schema: `POST /api/v1/generate-consultation`
+
+| Field | Type | Constraint | Description |
+| :--- | :--- | :--- | :--- |
+| **`metadata`** | `object` | Required | Historical context & administrative data. |
+| ↳ `patient_id` | `string` | Min: 2, Max: 50 | Unique system identifier for the patient. |
+| ↳ `patient_name` | `string` | Min: 2, Max: 200 | Full legal name for hydration. |
+| ↳ `patient_taj` | `string` | `^\d{3}-\d{3}-\d{3}$` | Hungarian Healthcare ID (TAJ). |
+| ↳ `doctor_id` | `string` | Min: 2, Max: 50 | Healthcare provider identifier. |
+| ↳ `doctor_name` | `string` | Min: 2, Max: 200 | Reporting physician's name. |
+| ↳ `doctor_seal` | `string` | Min: 2, Max: 50 | Official medical seal/license number. |
+| ↳ `encounter_date` | `string` | ISO 8601 | Current visit timestamp (UTC). |
+| ↳ `context_documents` | `array` | Max: 50 items | List of past records available for semantic mapping. |
+| ↳ `available_doctors` | `array` | list | List of candidate providers for follow-up referrals. |
+| **`transcript`** | `string` | 10 - 100k chars | Verbatim audio transcript text (unscrubbed). |
+
+#### Response Schema: `FinalReportResponse`
+
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| **`administrative_metadata`** | `object` | Mirror of input metadata, hydrated with original PII values. |
+| **`clinical_report`** | `object` | Highly structured, validated clinical findings (`DiagnosticResult`). |
+| ↳ `chief_complaints` | `array` | Symptomatic reasons for the current visit. |
+| ↳ `assessments` | `array` | Clinical findings mapping to transcripts or past documents. |
+| ↳ `actionables` | `array` | Instructions/referrals (`ActionableItem`). |
+| **`patient_summary`** | `object` | Human-readable translation for the patient portal. |
+| ↳ `layman_explanation` | `string` | Non-technical summary of the encounter. |
+| ↳ `actionables` | `array` | Clear patient-facing steps mirrored from the clinical report. |
+
+#### Shared Component: `DiagnosticResult` / `ActionableItem`
+
+- **`finding` / `description`**: Verbatim clinical discovery or next step.
+- **`condition_status`**: `enum` ["CONFIRMED", "NEGATED", "SUSPECTED", "UNKNOWN"]
+- **`subject`**: `enum` ["PATIENT", "FAMILY_MEMBER"]
+- **`action_type`**: `enum` ["PHARMACY_PICKUP", "FOLLOW_UP_APPT", "LIFESTYLE_CHANGE", "LAB_TEST", "OTHER"]
+- **`system_reference_id`**: Opaque ID mapping back to `system_doc_id` or `doctor_id`.
+- **`exact_quote`**: Verbatim 1-4 word substring from the source transcript (Proof-of-Work).
+
+---
 
 #### Endpoint: `POST /api/v1/generate-consultation`
 
-**Request Body Schema:**
+**Request Body Example:**
 ```json
 {
   "metadata": {
