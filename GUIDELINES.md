@@ -8,3 +8,6 @@
 - update TODO.md with implementation status for every new feature (done, missing, placeholder, minimal implementation)
 - do not create unnecessary .md files
 - strictly keep README.md and TODO.md up to date. every time you add a new feature, update TODO.md and README.md
+- never include any emojis in communications or documentation
+- always provide compact, high-quality, rich technical information only
+- prioritize architectural analysis and precision over conversational tone
