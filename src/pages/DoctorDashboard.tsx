@@ -32,6 +32,7 @@ export default function DoctorDashboard() {
   const [viewingFile, setViewingFile] = useState<{file: File, url: string} | null>(null);
   const [editableNotes, setEditableNotes] = useState(selectedAppointment?.report || '');
   const [pdfVersion, setPdfVersion] = useState(0);
+  const [isTranscribing, setIsTranscribing] = useState(false);
 
   // Reset notes whenever the selected appointment changes
   useEffect(() => {
@@ -248,21 +249,44 @@ export default function DoctorDashboard() {
                           </Button>
                         )}
                         <Button 
-                          onClick={() => {
-                            stopRecording();
-                            // Simulate AI Transcription delay
-                            setTimeout(() => {
+                          disabled={isTranscribing}
+                          onClick={async () => {
+                            try {
+                              setIsTranscribing(true);
+                              const audioBlob = await stopRecording();
                               clearRecordings();
-                              setEditableNotes(prev => 
-                                prev + (prev ? '\n\n' : '') + 
-                                '[AI Transcription]: Patient presents with continued joint discomfort. Vitals are stable. Advised to continue current physical therapy regimen for another 4 weeks and return for follow-up.'
+
+                              // Send audio to the real transcription backend
+                              const formData = new FormData();
+                              formData.append('file', audioBlob, 'recording.webm');
+
+                              const response = await fetch(APP_CONFIG.TRANSCRIBE_API_URL, {
+                                method: 'POST',
+                                body: formData,
+                              });
+
+                              if (!response.ok) {
+                                const errData = await response.json().catch(() => ({}));
+                                throw new Error(errData.detail || `Server error ${response.status}`);
+                              }
+
+                              const data = await response.json();
+                              setEditableNotes(prev =>
+                                prev + (prev ? '\n\n' : '') + data.transcript
                               );
-                            }, APP_CONFIG.SCRIBE_DELAY_MS);
-                          }} 
+                            } catch (err: unknown) {
+                              console.error('Transcription failed:', err);
+                              const message = err instanceof Error ? err.message : 'Unknown error';
+                              alert(`Transcription failed: ${message}`);
+                            } finally {
+                              setIsTranscribing(false);
+                            }
+                          }}
                            variant="outline" 
                           className="flex items-center gap-2 border-slate-300 text-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800"
                         >
-                          <Square className="w-4 h-4" /> Stop & Transcribe
+                          <Square className="w-4 h-4" />
+                          {isTranscribing ? 'Transcribing…' : 'Stop & Transcribe'}
                         </Button>
                       </>
                     )}

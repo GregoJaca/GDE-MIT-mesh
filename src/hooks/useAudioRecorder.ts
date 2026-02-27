@@ -42,6 +42,8 @@ export function useAudioRecorder(appointmentId: string) {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Resolve function for the blob promise returned by stopRecording
+  const blobResolveRef = useRef<((blob: Blob) => void) | null>(null);
 
   // Add cleanup on unmount
   useEffect(() => {
@@ -75,7 +77,7 @@ export function useAudioRecorder(appointmentId: string) {
       };
 
       mediaRecorder.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: 'audio/wav' });
+        const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
         const url = URL.createObjectURL(blob);
         
         setDuration(currentDuration => {
@@ -94,6 +96,12 @@ export function useAudioRecorder(appointmentId: string) {
         
         // Stop all tracks to release the microphone
         stream.getTracks().forEach(track => track.stop());
+
+        // Resolve the blob promise so the caller gets the audio data
+        if (blobResolveRef.current) {
+          blobResolveRef.current(blob);
+          blobResolveRef.current = null;
+        }
       };
 
       mediaRecorder.start(1000); // Collect data every second
@@ -112,16 +120,23 @@ export function useAudioRecorder(appointmentId: string) {
     }
   }, [appointmentId]);
 
-  const stopRecording = useCallback(() => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-      mediaRecorderRef.current.stop();
-    }
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-    setIsRecording(false);
-    setIsPaused(false);
+  /**
+   * Stops the recording and returns a Promise that resolves with the audio Blob.
+   */
+  const stopRecording = useCallback((): Promise<Blob> => {
+    return new Promise((resolve) => {
+      blobResolveRef.current = resolve;
+
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        mediaRecorderRef.current.stop();
+      }
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+      setIsRecording(false);
+      setIsPaused(false);
+    });
   }, []);
 
   const pauseRecording = useCallback(() => {

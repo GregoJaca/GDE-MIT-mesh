@@ -1,9 +1,12 @@
 import azure.cognitiveservices.speech as speechsdk
 import time
 import os
-from dotenv import load_dotenv
 
-load_dotenv()
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # env vars already loaded by server.py or set externally
 
 def transcribe_file_with_diarization(audio_file_path):
     """
