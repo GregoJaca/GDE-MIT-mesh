@@ -1,0 +1,10 @@
+- write clean and modular code
+- use .env file for environment variables
+- use different directories for different components, be modular
+- make the codebase flexible so we can edit it extensively
+- write tests to validate the implementation of new features
+- do not use hardcoded values, use config files
+- follow best coding practices
+- update TODO.md with implementation status for every new feature (done, missing, placeholder, minimal implementation)
+- do not create unnecessary .md files
+- strictly keep README.md and TODO.md up to date. every time you add a new feature, update TODO.md and README.md
