@@ -1,59 +1,65 @@
-import os
 import logging
 from contextlib import asynccontextmanager
-from typing import Dict
-from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI, HTTPException
 from openai import OpenAI
-from pydantic import BaseModel, Field
 
-# minimalist senior architecture
-load_dotenv(dotenv_path="../.env")
+from config import Config
+from api_models import GenerationRequest, FinalReportResponse
+from pipeline import ZeroHallucinationPipeline
 
-class Config:
-    KEY = os.getenv("OPENAI_API_KEY")
-    ENDPOINT = os.getenv("AZURE_OPENAI_ENDPOINT", "https://mesh-ai.openai.azure.com/")
-    VERSION = os.getenv("AZURE_OPENAI_API_VERSION", "2024-12-01-preview")
-    MODEL = os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME", "gpt-5.2")
-    BASE_URL = f"{ENDPOINT.rstrip('/')}/openai/v1"
-
-class ChatRequest(BaseModel):
-    prompt: str = Field(..., min_length=1)
-    max_tokens: int = 100
-
-class State:
-    client: OpenAI | None = None
-
-state = State()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("api")
 
+class AppState:
+    client: OpenAI | None = None
+    pipeline: ZeroHallucinationPipeline | None = None
+
+state = AppState()
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    if not Config.KEY: raise RuntimeError("ENV MISSING: OPENAI_API_KEY")
+    if not Config.KEY: 
+        raise RuntimeError("CRITICAL: OPENAI_API_KEY environment variable missing.")
+    
     state.client = OpenAI(
         base_url=Config.BASE_URL,
         api_key=Config.KEY,
         default_query={"api-version": Config.VERSION},
         default_headers={"api-key": Config.KEY}
     )
+    state.pipeline = ZeroHallucinationPipeline(client=state.client, model=Config.MODEL)
+    logger.info("Application lifespan started. OpenAI & Scrubber loaded.")
     yield
     state.client = None
+    state.pipeline = None
+    logger.info("Application lifespan ended.")
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(lifespan=lifespan, title="EESZT Hackathon Backend API")
 
-@app.post("/chat")
-async def chat(req: ChatRequest):
+@app.post("/api/v1/generate-consultation", response_model=FinalReportResponse)
+async def generate_consultation(req: GenerationRequest):
+    """
+    Executes the Deterministic Linear Pipeline for EESZT integration.
+    """
     try:
-        res = state.client.chat.completions.create(
-            model=Config.MODEL,
-            messages=[{"role": "user", "content": req.prompt}],
-            max_tokens=req.max_tokens
+        # Run E2E pipeline (Scrub -> Parse -> Guardrail -> Translate -> Hydrate)
+        hydrated_clinical, hydrated_patient, token_map = state.pipeline.run_consultation(
+            raw_transcript=req.transcript,
+            metadata_context=req.metadata.model_dump()
         )
-        return {"response": res.choices[0].message.content, "usage": res.usage.model_dump()}
+        
+        # Inject deterministic administrative metadata (bypass)
+        administrative_metadata = req.metadata.model_dump(exclude={"context_documents"})
+        
+        return FinalReportResponse(
+            administrative_metadata=administrative_metadata,
+            clinical_report=hydrated_clinical,
+            patient_summary=hydrated_patient
+        )
+        
     except Exception as e:
-        logger.error(f"FAIL: {e}")
-        raise HTTPException(500, detail=str(e))
+        logger.error(f"Generate Consultation Failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     import uvicorn
