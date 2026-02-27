@@ -1,0 +1,41 @@
+{
+    "dynamic_parameters": {
+        "standard_clinical": {
+            "chief_complaint": "string",
+            "history_of_present_illness": "text",
+            "past_medical_history": "array_of_strings",
+            "current_medications": "array_of_objects",
+            "allergies": "array_of_strings",
+            "vital_signs": {
+                "blood_pressure": "string",
+                "heart_rate": "integer",
+                "temperature": "float",
+                "respiratory_rate": "integer",
+                "o2_saturation": "integer"
+            },
+            "physical_exam": "text",
+            "diagnostic_results": "text",
+            "assessment": "text",
+            "plan": "text"
+        },
+        "discharge_specific": {
+            "admission_date": "datetime",
+            "discharge_date": "datetime",
+            "admitting_diagnosis": "string",
+            "discharge_diagnosis": "string",
+            "hospital_course": "text",
+            "discharge_disposition": "string",
+            "discharge_medications": "array_of_objects"
+        },
+        "operative_specific": {
+            "pre_operative_diagnosis": "string",
+            "post_operative_diagnosis": "string",
+            "procedure_performed": "string",
+            "surgeon_name": "string",
+            "assistant_names": "array_of_strings",
+            "anesthesia_type": "string",
+            "estimated_blood_loss_ml": "integer",
+            "complications": "text"
+        }
+    }
+}
