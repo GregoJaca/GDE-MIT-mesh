@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { FileText, Download, ExternalLink, Eye, FileCode } from 'lucide-react';
+import { FileText, Download, ExternalLink, FileCode, ChevronRight, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { getGeneratedPdf } from '@/lib/pdf-store';
@@ -15,8 +15,6 @@ interface ReportPdf {
   pdfUrl: string;
 }
 
-// Map each appointment to a PDF document served from /public/reports/
-// For the hackathon we reuse the same PDF — in production each would be unique
 export const mockReportPdfs: Record<string, ReportPdf> = {
   'APP-001': {
     title: 'Annual Physical — Clinical Report',
@@ -66,29 +64,28 @@ export default function ReportViewer({ appointmentId, pdfVersion, mdVersion }: R
   const [isOpen, setIsOpen] = useState(false);
   const [viewMode, setViewMode] = useState<'pdf' | 'md'>('pdf');
 
-  // Close the popup if it was open when switching appointments
   useEffect(() => {
     setIsOpen(false);
   }, [appointmentId]);
 
-  // Check if there's a doctor-generated PDF for this appointment
   const generatedUrl = getGeneratedPdf(appointmentId);
-  // Use generated PDF if available, otherwise fall back to the static mock
   const activePdfUrl = generatedUrl || report?.pdfUrl || '';
   const hasGenerated = !!generatedUrl;
 
-  // Check for generated markdown report
   const generatedMd = getGeneratedMd(appointmentId);
   const hasGeneratedMd = !!generatedMd;
-  // Use mdVersion to force re-render
   void mdVersion;
+
+  const totalReports = (hasGenerated ? 1 : 0) + (hasGeneratedMd ? 1 : 0) + (report ? 1 : 0);
 
   if (!report && !hasGenerated && !hasGeneratedMd) {
     return (
-      <div className="flex flex-col items-center justify-center py-16 text-slate-400 dark:text-slate-500">
-        <FileText className="w-12 h-12 mb-3 opacity-30" />
-        <p className="text-base font-medium">No reports available</p>
-        <p className="text-sm mt-1">Reports will appear here once generated.</p>
+      <div className="flex flex-col items-center justify-center h-full p-8">
+        <div className="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center mb-4">
+          <FileText className="w-8 h-8 text-slate-300 dark:text-slate-600" />
+        </div>
+        <p className="text-base font-semibold text-slate-500 dark:text-slate-400">No reports yet</p>
+        <p className="text-sm mt-1 text-slate-400 dark:text-slate-500 text-center max-w-xs">Generate a report from Clinical Notes to see it here.</p>
       </div>
     );
   }
@@ -100,138 +97,158 @@ export default function ReportViewer({ appointmentId, pdfVersion, mdVersion }: R
     ? `${report.provider} • ${new Date(report.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}` 
     : '';
 
-  // Use pdfVersion as a key suffix to force iframe reload
   const iframeKey = `${appointmentId}-${pdfVersion ?? 0}`;
 
   return (
-    <div className="flex flex-col h-full items-center justify-center p-8 bg-slate-50 dark:bg-slate-900/50 relative">
-      {/* Document Cards */}
-      <div className="w-full max-w-lg mx-auto space-y-4">
-        {/* Generated notes PDF card (if exists) */}
-        {hasGenerated && (
-          <div 
-            className="group cursor-pointer"
-            onClick={() => setIsOpen(true)}
-          >
-            <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border-2 border-brand-teal/30 dark:border-brand-teal/40 shadow-sm hover:shadow-lg transition-all duration-300 transform group-hover:-translate-y-1 group-hover:border-brand-teal">
-              <div className="flex items-center gap-5">
-                <div className="w-14 h-14 bg-brand-teal/10 rounded-xl flex items-center justify-center text-brand-teal shrink-0 group-hover:scale-110 transition-transform duration-300">
-                  <FileText className="w-7 h-7" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-lg font-bold text-brand-plum dark:text-brand-lime truncate">Clinical Notes Report</h3>
-                    <span className="text-[10px] font-bold uppercase tracking-wider bg-brand-teal/10 text-brand-teal px-2 py-0.5 rounded-full shrink-0">Generated</span>
-                  </div>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">{subtitle}</p>
-                </div>
-                <Button size="sm" className="bg-brand-teal hover:bg-brand-teal/90 text-white gap-1.5 rounded-lg shrink-0">
-                  <Eye className="w-3.5 h-3.5" />
-                  View
-                </Button>
-              </div>
-            </div>
+    <div className="flex flex-col h-full overflow-auto">
+      {/* Section header */}
+      <div className="px-6 pt-6 pb-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-bold text-slate-800 dark:text-white">Documents</h2>
+            <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">{totalReports} report{totalReports !== 1 ? 's' : ''} available</p>
           </div>
-        )}
-
-        {/* Generated Markdown card (if exists) */}
-        {hasGeneratedMd && (
-          <div 
-            className="group cursor-pointer"
-            onClick={() => { setViewMode('md'); setIsOpen(true); }}
-          >
-            <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border-2 border-emerald-300/40 dark:border-emerald-600/40 shadow-sm hover:shadow-lg transition-all duration-300 transform group-hover:-translate-y-1 group-hover:border-emerald-400">
-              <div className="flex items-center gap-5">
-                <div className="w-14 h-14 bg-emerald-50 dark:bg-emerald-950/30 rounded-xl flex items-center justify-center text-emerald-500 shrink-0 group-hover:scale-110 transition-transform duration-300">
-                  <FileCode className="w-7 h-7" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-lg font-bold text-brand-plum dark:text-brand-lime truncate">Markdown Report</h3>
-                    <span className="text-[10px] font-bold uppercase tracking-wider bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-full shrink-0">Generated</span>
-                  </div>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">{subtitle}</p>
-                </div>
-                <Button size="sm" className="bg-emerald-500 hover:bg-emerald-600 text-white gap-1.5 rounded-lg shrink-0">
-                  <Eye className="w-3.5 h-3.5" />
-                  View
-                </Button>
-              </div>
-            </div>
+          <div className="flex items-center gap-1.5 text-[10px] text-slate-400 dark:text-slate-600 uppercase tracking-widest font-bold">
+            <Shield className="w-3 h-3" />
+            Encrypted
           </div>
-        )}
-
-        {/* Original/static report card */}
-        {report && (
-          <div 
-            className="group cursor-pointer"
-            onClick={() => {
-              if (!hasGenerated) setIsOpen(true);
-              else window.open(report.pdfUrl, '_blank');
-            }}
-          >
-            <div className={`bg-white dark:bg-slate-800 rounded-2xl p-6 border shadow-sm hover:shadow-lg transition-all duration-300 transform group-hover:-translate-y-1 ${hasGenerated ? 'border-slate-200 dark:border-slate-700 group-hover:border-slate-300 dark:group-hover:border-slate-600' : 'border-slate-200 dark:border-slate-700 group-hover:border-brand-teal/50'}`}>
-              <div className="flex items-center gap-5">
-                <div className={`w-14 h-14 rounded-xl flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform duration-300 ${hasGenerated ? 'bg-slate-100 dark:bg-slate-700 text-slate-400' : 'bg-brand-teal/10 text-brand-teal'}`}>
-                  <FileText className="w-7 h-7" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <h3 className={`text-lg font-bold truncate ${hasGenerated ? 'text-slate-600 dark:text-slate-300' : 'text-brand-plum dark:text-brand-lime'}`}>{report.title}</h3>
-                    <span className="text-[10px] font-bold uppercase tracking-wider bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 px-2 py-0.5 rounded-full shrink-0">Original</span>
-                  </div>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">{subtitle}</p>
-                </div>
-                <Button size="sm" variant={hasGenerated ? 'outline' : 'default'} className={hasGenerated ? 'gap-1.5 rounded-lg shrink-0' : 'bg-brand-teal hover:bg-brand-teal/90 text-white gap-1.5 rounded-lg shrink-0'}>
-                  <Eye className="w-3.5 h-3.5" />
-                  {hasGenerated ? 'Open' : 'View'}
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        <p className="text-[10px] text-center text-slate-400 dark:text-slate-500 uppercase tracking-widest font-bold pt-2">Encrypted Clinical Records</p>
+        </div>
       </div>
 
-      {/* PDF Viewer Dialog */}
+      {/* Cards */}
+      <div className="px-6 pb-6 space-y-3">
+
+        {/* Generated PDF Card */}
+        {hasGenerated && (
+          <button
+            onClick={() => { setViewMode('pdf'); setIsOpen(true); }}
+            className="w-full text-left group"
+          >
+            <div className="flex items-center gap-4 p-4 rounded-xl bg-gradient-to-r from-sky-50 to-cyan-50 dark:from-sky-950/60 dark:to-cyan-950/40 border border-sky-200 dark:border-sky-800 hover:border-sky-300 dark:hover:border-sky-700 hover:shadow-lg hover:shadow-sky-100 dark:hover:shadow-sky-950/30 transition-all duration-200 hover:-translate-y-px">
+              <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-sky-500 to-cyan-500 flex items-center justify-center shadow-md shadow-sky-500/25 shrink-0">
+                <FileText className="w-5 h-5 text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-bold text-slate-800 dark:text-white truncate">PDF Report</h3>
+                  <span className="text-[9px] font-bold uppercase tracking-wider bg-sky-500 text-white px-1.5 py-0.5 rounded shrink-0">New</span>
+                </div>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 truncate">{subtitle}</p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-sky-400 dark:text-sky-500 group-hover:translate-x-0.5 transition-transform shrink-0" />
+            </div>
+          </button>
+        )}
+
+        {/* Generated Markdown Card */}
+        {hasGeneratedMd && (
+          <button
+            onClick={() => { setViewMode('md'); setIsOpen(true); }}
+            className="w-full text-left group"
+          >
+            <div className="flex items-center gap-4 p-4 rounded-xl bg-gradient-to-r from-violet-50 to-purple-50 dark:from-violet-950/60 dark:to-purple-950/40 border border-violet-200 dark:border-violet-800 hover:border-violet-300 dark:hover:border-violet-700 hover:shadow-lg hover:shadow-violet-100 dark:hover:shadow-violet-950/30 transition-all duration-200 hover:-translate-y-px">
+              <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-md shadow-violet-500/25 shrink-0">
+                <FileCode className="w-5 h-5 text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-bold text-slate-800 dark:text-white truncate">Markdown Report</h3>
+                  <span className="text-[9px] font-bold uppercase tracking-wider bg-violet-500 text-white px-1.5 py-0.5 rounded shrink-0">New</span>
+                </div>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 truncate">{subtitle}</p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-violet-400 dark:text-violet-500 group-hover:translate-x-0.5 transition-transform shrink-0" />
+            </div>
+          </button>
+        )}
+
+        {/* Original Report Card */}
+        {report && (
+          <button
+            onClick={() => {
+              if (!hasGenerated) { setViewMode('pdf'); setIsOpen(true); }
+              else window.open(report.pdfUrl, '_blank');
+            }}
+            className="w-full text-left group"
+          >
+            <div className={`flex items-center gap-4 p-4 rounded-xl border transition-all duration-200 hover:-translate-y-px ${
+              hasGenerated || hasGeneratedMd
+                ? 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 hover:shadow-md'
+                : 'bg-gradient-to-r from-teal-50 to-emerald-50 dark:from-teal-950/60 dark:to-emerald-950/40 border-teal-200 dark:border-teal-800 hover:border-teal-300 dark:hover:border-teal-700 hover:shadow-lg hover:shadow-teal-100 dark:hover:shadow-teal-950/30'
+            }`}>
+              <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${
+                hasGenerated || hasGeneratedMd
+                  ? 'bg-slate-200 dark:bg-slate-700'
+                  : 'bg-gradient-to-br from-teal-500 to-emerald-500 shadow-md shadow-teal-500/25'
+              }`}>
+                <FileText className={`w-5 h-5 ${hasGenerated || hasGeneratedMd ? 'text-slate-400 dark:text-slate-500' : 'text-white'}`} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <h3 className={`text-sm font-bold truncate ${hasGenerated || hasGeneratedMd ? 'text-slate-500 dark:text-slate-400' : 'text-slate-800 dark:text-white'}`}>
+                    {report.title}
+                  </h3>
+                  <span className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0 ${
+                    hasGenerated || hasGeneratedMd
+                      ? 'bg-slate-200 dark:bg-slate-700 text-slate-400 dark:text-slate-500'
+                      : 'bg-teal-500 text-white'
+                  }`}>
+                    Original
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 truncate">{subtitle}</p>
+              </div>
+              <ChevronRight className={`w-4 h-4 group-hover:translate-x-0.5 transition-transform shrink-0 ${
+                hasGenerated || hasGeneratedMd ? 'text-slate-300 dark:text-slate-600' : 'text-teal-400 dark:text-teal-500'
+              }`} />
+            </div>
+          </button>
+        )}
+      </div>
+
+      {/* Viewer Dialog */}
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent className="max-w-5xl h-[90vh] flex flex-col p-0 overflow-hidden bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800">
-          <DialogHeader className="p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 shrink-0">
-            <DialogTitle className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pr-6">
-              <span className="flex items-center gap-2 text-brand-plum dark:text-brand-lime truncate">
-                {viewMode === 'pdf' ? <FileText className="w-5 h-5 text-brand-teal shrink-0" /> : <FileCode className="w-5 h-5 text-brand-teal shrink-0" />}
+          <DialogHeader className="px-5 py-3 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 shrink-0">
+            <DialogTitle className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pr-6">
+              <span className="flex items-center gap-2 text-slate-800 dark:text-white truncate text-base">
+                {viewMode === 'pdf' ? <FileText className="w-4 h-4 text-sky-500 shrink-0" /> : <FileCode className="w-4 h-4 text-violet-500 shrink-0" />}
                 {title}
               </span>
               <div className="flex flex-wrap items-center gap-2">
-                {hasGenerated && (
-                  <div className="flex bg-slate-200/50 dark:bg-slate-800 rounded-lg p-0.5 mr-2 border border-slate-200 dark:border-slate-700">
+                {hasGenerated && hasGeneratedMd && (
+                  <div className="relative flex bg-slate-100 dark:bg-slate-800 rounded-lg p-0.5 border border-slate-200 dark:border-slate-700">
+                    <div className={`absolute top-0.5 bottom-0.5 rounded-md shadow-sm transition-all duration-300 ease-in-out ${
+                      viewMode === 'pdf'
+                        ? 'left-0.5 w-[calc(50%-2px)] bg-sky-500'
+                        : 'left-[calc(50%+2px)] w-[calc(50%-4px)] bg-violet-500'
+                    }`} />
                     <button 
                       onClick={() => setViewMode('pdf')}
-                      className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${viewMode === 'pdf' ? 'bg-white dark:bg-slate-700 text-brand-teal shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                      className={`relative z-10 px-3 py-1 text-xs font-bold rounded-md transition-colors duration-200 ${viewMode === 'pdf' ? 'text-white' : 'text-slate-400 hover:text-slate-600'}`}
                     >
-                      PDF View
+                      PDF
                     </button>
                     <button 
                       onClick={() => setViewMode('md')}
-                      className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${viewMode === 'md' ? 'bg-white dark:bg-slate-700 text-brand-teal shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                      className={`relative z-10 px-3 py-1 text-xs font-bold rounded-md transition-colors duration-200 ${viewMode === 'md' ? 'text-white' : 'text-slate-400 hover:text-slate-600'}`}
                     >
-                      Markdown View
+                      Markdown
                     </button>
                   </div>
                 )}
                 
                 {viewMode === 'pdf' ? (
                   <>
-                    <Button size="sm" variant="outline" className="gap-2 h-8 text-xs border-slate-200 dark:border-slate-700" onClick={() => window.open(activePdfUrl, '_blank')}>
-                      <ExternalLink className="w-3.5 h-3.5" /> Open in New Tab
+                    <Button size="sm" variant="outline" className="gap-1.5 h-7 text-xs" onClick={() => window.open(activePdfUrl, '_blank')}>
+                      <ExternalLink className="w-3 h-3" /> New Tab
                     </Button>
-                    <Button size="sm" variant="outline" className="gap-2 h-8 text-xs border-slate-200 dark:border-slate-700" asChild>
-                      <a href={activePdfUrl} download><Download className="w-3.5 h-3.5" /> Download PDF</a>
+                    <Button size="sm" variant="outline" className="gap-1.5 h-7 text-xs" asChild>
+                      <a href={activePdfUrl} download><Download className="w-3 h-3" /> Download</a>
                     </Button>
                   </>
                 ) : (
-                  <Button size="sm" variant="outline" className="gap-2 h-8 text-xs border-slate-200 dark:border-slate-700" onClick={() => {
+                  <Button size="sm" variant="outline" className="gap-1.5 h-7 text-xs" onClick={() => {
                     const blob = new Blob([generatedMd || appointmentDoc?.report || ''], { type: 'text/markdown' });
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');
@@ -239,13 +256,13 @@ export default function ReportViewer({ appointmentId, pdfVersion, mdVersion }: R
                     a.download = `Clinical_Notes_${appointmentId}.md`;
                     a.click();
                   }}>
-                    <Download className="w-3.5 h-3.5" /> Download .MD
+                    <Download className="w-3 h-3" /> Download .md
                   </Button>
                 )}
               </div>
             </DialogTitle>
           </DialogHeader>
-          <div className="flex-1 bg-slate-200 dark:bg-slate-950 relative overflow-auto">
+          <div className="flex-1 bg-slate-100 dark:bg-slate-950 relative overflow-auto">
             {viewMode === 'pdf' ? (
               <iframe
                 key={iframeKey}
@@ -254,9 +271,9 @@ export default function ReportViewer({ appointmentId, pdfVersion, mdVersion }: R
                 title={title}
               />
             ) : (
-              <div className="w-full min-h-full bg-slate-50 dark:bg-slate-900 p-8 sm:p-12">
-                <div className="max-w-3xl mx-auto bg-white dark:bg-slate-950 p-8 sm:p-10 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800">
-                  <article className="prose prose-slate dark:prose-invert lg:prose-lg max-w-none prose-headings:text-brand-plum dark:prose-headings:text-brand-lime prose-a:text-brand-teal">
+              <div className="w-full min-h-full p-8 sm:p-12">
+                <div className="max-w-3xl mx-auto bg-white dark:bg-slate-900 p-8 sm:p-10 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800">
+                  <article className="prose prose-slate dark:prose-invert lg:prose-lg max-w-none prose-headings:text-slate-800 dark:prose-headings:text-white prose-a:text-violet-500">
                     <ReactMarkdown>
                       {generatedMd || appointmentDoc?.report || '*No markdown content available.*'}
                     </ReactMarkdown>

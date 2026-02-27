@@ -1,23 +1,12 @@
 import { useState } from 'react';
-import { Bot, Calendar, Stethoscope, FileText, AlertCircle, CheckCircle2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Bot, Calendar, Stethoscope, MessageSquare, ChevronDown, Sparkles, Send } from 'lucide-react';
 import { useAppointmentContext } from '@/layouts/DashboardLayout';
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
 import ReportViewer from '@/components/ReportViewer';
-
-type TabId = 'report' | 'ai';
 
 export default function PatientDashboard() {
   const { selectedAppointment, selectedCase } = useAppointmentContext();
-  const [activeTab, setActiveTab] = useState<TabId>('report');
-  
-  // Simulated files state for the AI to still have context, since files uploaded by doctor would be linked to the appointment
-  const files: File[] = []; 
+  const [agentOpen, setAgentOpen] = useState(false);
+  const [agentMessage, setAgentMessage] = useState('');
 
   if (!selectedAppointment) {
     return (
@@ -29,25 +18,20 @@ export default function PatientDashboard() {
     );
   }
 
-  const tabs: { id: TabId; label: string; icon: typeof FileText }[] = [
-    { id: 'report', label: 'Report', icon: FileText },
-    { id: 'ai', label: 'AI Assistant', icon: Bot },
-  ];
-
   return (
     <div className="flex flex-col h-full gap-4">
       {/* Appointment Header */}
       <div className="flex items-center justify-between bg-white dark:bg-slate-900 p-4 rounded-xl shadow-sm border border-slate-200/60 dark:border-slate-800 shrink-0 transition-colors">
         <div>
-          <div className="flex items-center gap-3 mb-1">
-            {selectedCase && (
-              <div className="flex items-center gap-2 bg-gradient-to-r from-brand-plum/5 to-brand-teal/5 dark:from-brand-plum/10 dark:to-brand-teal/10 text-brand-plum dark:text-brand-lime px-2.5 py-1 rounded-lg text-xs font-semibold border border-brand-plum/15 dark:border-brand-lime/20">
+          {selectedCase && (
+            <div className="flex items-center gap-2 mb-1.5">
+              <div className="flex items-center gap-1.5 bg-brand-plum/8 dark:bg-brand-plum/15 text-brand-plum dark:text-brand-lime px-2.5 py-1 rounded-lg text-xs font-semibold border border-brand-plum/15 dark:border-brand-lime/20">
                 <span className="text-sm">{selectedCase.icon}</span>
                 {selectedCase.title}
               </div>
-            )}
-          </div>
-          <h1 className="text-xl font-bold text-brand-plum dark:text-brand-lime flex items-center gap-3">
+            </div>
+          )}
+          <h1 className="text-xl font-bold text-slate-800 dark:text-white flex items-center gap-3">
             {selectedAppointment.topic}
             <span className="text-xs font-semibold px-2 py-1 bg-brand-lime/20 text-brand-teal rounded-full border border-brand-lime/50">
               {selectedAppointment.status}
@@ -64,74 +48,91 @@ export default function PatientDashboard() {
         </div>
       </div>
 
-      {/* Tab Bar */}
-      <div className="flex items-center gap-1 bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200/60 dark:border-slate-800 p-1 shrink-0 transition-colors">
-        {tabs.map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                isActive
-                  ? 'bg-brand-teal/10 text-brand-teal shadow-sm'
-                  : 'text-brand-slate dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-brand-plum dark:hover:text-white'
-              }`}
-            >
-              <Icon className="w-4 h-4" />
-              {tab.label}
-            </button>
-          );
-        })}
+      {/* Main Content — Reports */}
+      <div className="flex-1 min-h-0 bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200/60 dark:border-slate-800 overflow-hidden transition-colors">
+        <ReportViewer appointmentId={selectedAppointment.id} />
       </div>
 
-      {/* Tab Content */}
-      <div className="flex-1 min-h-0 bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200/60 dark:border-slate-800 overflow-hidden transition-colors">
-        
-        {/* REPORT TAB */}
-        {activeTab === 'report' && (
-          <ReportViewer appointmentId={selectedAppointment.id} />
-        )}
+      {/* Collapsible AI Agent Panel */}
+      <div className={`shrink-0 bg-white dark:bg-slate-900 rounded-xl shadow-sm border transition-all duration-300 overflow-hidden ${
+        agentOpen 
+          ? 'border-violet-200 dark:border-violet-800' 
+          : 'border-slate-200/60 dark:border-slate-800'
+      }`}>
+        {/* Toggle header */}
+        <button
+          onClick={() => setAgentOpen(!agentOpen)}
+          className="w-full flex items-center gap-3 px-5 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
+        >
+          <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors duration-200 ${
+            agentOpen
+              ? 'bg-gradient-to-br from-violet-500 to-purple-600 shadow-md shadow-violet-500/20'
+              : 'bg-slate-100 dark:bg-slate-800'
+          }`}>
+            {agentOpen 
+              ? <Sparkles className="w-4 h-4 text-white" />
+              : <Bot className="w-4 h-4 text-slate-400 dark:text-slate-500" />
+            }
+          </div>
+          <div className="flex-1 text-left">
+            <span className={`text-sm font-bold ${agentOpen ? 'text-violet-600 dark:text-violet-400' : 'text-slate-600 dark:text-slate-400'}`}>
+              AI Assistant
+            </span>
+            <span className="text-[11px] text-slate-400 dark:text-slate-500 ml-2">
+              Ask questions about your appointment
+            </span>
+          </div>
+          <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-200 ${agentOpen ? 'rotate-180' : ''}`} />
+        </button>
 
-        {/* AI ASSISTANT TAB */}
-        {activeTab === 'ai' && (
-          <div className="p-8 overflow-auto h-full">
-            <div className="max-w-3xl mx-auto">
-              <Accordion type="single" collapsible defaultValue="ai-assistant" className="w-full bg-brand-slate/5 dark:bg-slate-800 rounded-xl border border-brand-slate/20 dark:border-slate-700">
-                <AccordionItem value="ai-assistant" className="border-none">
-                  <AccordionTrigger className="px-6 hover:no-underline hover:bg-brand-slate/10 rounded-t-xl transition-colors">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-brand-plum/10 dark:bg-brand-plum/20 rounded-lg text-brand-plum dark:text-brand-lime">
-                        <Bot className="w-5 h-5" />
-                      </div>
-                      <div className="text-left font-medium">
-                        <span className="block text-brand-plum dark:text-brand-lime">AI Assistant</span>
-                        <span className="text-xs text-brand-slate dark:text-slate-400 font-normal">Ask questions or analyze the uploaded documents</span>
-                      </div>
-                    </div>
-                  </AccordionTrigger>
-                  <AccordionContent className="px-6 pb-6 pt-2">
-                    {files.length > 0 ? (
-                      <div className="flex flex-col items-center justify-center text-center p-8 border border-dashed border-brand-teal/30 rounded-xl bg-brand-teal/5 dark:bg-brand-teal/10 mt-2">
-                        <CheckCircle2 className="w-12 h-12 text-brand-teal mb-4" />
-                        <h3 className="text-base font-semibold text-brand-plum dark:text-brand-lime">Documents Ready for Analysis</h3>
-                        <p className="text-sm text-brand-slate dark:text-slate-400 mt-2 mb-6 max-w-md">Our AI is ready to analyze your {files.length} uploaded document(s) and summarize them for your provider.</p>
-                        <Button className="w-full max-w-sm bg-brand-teal hover:bg-brand-teal/90 shadow-sm text-white">Start Auto-Analysis</Button>
-                      </div>
-                    ) : (
-                      <div className="flex flex-col items-center justify-center text-center p-8 border border-dashed border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900 mt-2">
-                        <AlertCircle className="w-10 h-10 text-slate-400 dark:text-slate-500 mb-3" />
-                        <p className="text-base font-medium text-slate-700 dark:text-slate-300">No context available</p>
-                        <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">Upload documents in the "Upload Files" tab first, then come back here to analyze them.</p>
-                      </div>
-                    )}
-                  </AccordionContent>
-                </AccordionItem>
-              </Accordion>
+        {/* Expanded content */}
+        <div className={`transition-all duration-300 ease-in-out ${agentOpen ? 'max-h-[400px] opacity-100' : 'max-h-0 opacity-0'}`}>
+          <div className="px-5 pb-4 border-t border-slate-100 dark:border-slate-800">
+            {/* Chat area */}
+            <div className="mt-3 mb-3 h-48 overflow-auto rounded-lg bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-700 p-4">
+              {/* Welcome message */}
+              <div className="flex items-start gap-3">
+                <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shrink-0 mt-0.5">
+                  <Sparkles className="w-3.5 h-3.5 text-white" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-xs font-semibold text-violet-600 dark:text-violet-400 mb-1">MediCore AI</p>
+                  <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+                    Hello! I can help you understand your medical records and appointment details. Feel free to ask me anything about your {selectedAppointment.topic.toLowerCase()}.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Input */}
+            <div className="flex items-center gap-2">
+              <div className="flex-1 relative">
+                <MessageSquare className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input
+                  value={agentMessage}
+                  onChange={(e) => setAgentMessage(e.target.value)}
+                  placeholder="Ask about your appointment..."
+                  className="w-full pl-10 pr-4 py-2.5 text-sm bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500/30 focus:border-violet-400 dark:focus:border-violet-600 text-slate-700 dark:text-slate-300 placeholder-slate-400 transition-all"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && agentMessage.trim()) {
+                      setAgentMessage('');
+                    }
+                  }}
+                />
+              </div>
+              <button
+                className={`p-2.5 rounded-lg transition-all duration-200 ${
+                  agentMessage.trim()
+                    ? 'bg-gradient-to-r from-violet-500 to-purple-600 text-white shadow-md shadow-violet-500/20 hover:shadow-lg'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-400'
+                }`}
+                disabled={!agentMessage.trim()}
+              >
+                <Send className="w-4 h-4" />
+              </button>
             </div>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
