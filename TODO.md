@@ -13,5 +13,39 @@
 
 ## Next Steps for the UI/UX Team
 - [ ] Connect the frontend recording component to the robust `/api/v1/generate-consultation` endpoint.
-- [ ] Render the `PatientSummary` UI with explicit 'Deep Links' based on the structured `System pointers`.
+- [ ] Render the `PatientSummary` UI with explicit 'Deep Links' based on the structured `EESZT pointers`.
 - [ ] Implement async streaming for lower perceived latency on clinical extraction.
+
+# Features Implementation Status
+
+- **Voice Recording Fix**: [done]
+- **Color Palette Update (Action Buttons)**: [done]
+- **Clinical Notes Formatting (Markdown & PDF Views)**: [done]
+- **Medical Report PDF Generation**: [done]
+- **Patient Summary PDF Generation**: [placeholder]
+- **Document Preview Interface**: [done]
+- **Patient AI Assistant Interface**: [placeholder]
+- **AI Transcription Backend API**: [minimal implementation] (Simulated locally)
+- **Backend File Upload Integration**: [missing]
+- **General Profile & Settings Dialogs**: [minimal implementation]
+- **deleting audio when sended to the transcriber**: [done]
+- **delete view bottom**
+- **folders**
+- **agent on the side**
+- **files in squares for the patient**- **deleting audio when sended to the transcriber**: [done]
+
+
+# TODO
+
+- [x] Extract reporting formatting configuration into `.json` map (done)
+- [x] Create Beautiful HTML Templates for PDF reports (done - SOAP, H&P, Discharge, Consult, Op Note)
+- [x] Create Python generator (`generate_report.py`) utilizing `WeasyPrint` & `jinja2` (done)
+- [ ] Connect `generate_report` to main pipeline workflow (placeholder)
+- [ ] Add rigorous unit testing (missing)
+
+## Transcriber Module
+- [x] Configure Azure Speech SDK for speaker diarization (done)
+- [x] Create modular `transcriber/transcribe.py` (done)
+- [ ] Integrate transcription logic with parsing pipeline (placeholder)
+- [ ] Connect transcriber and report generator to frontend.
+>>>>>>> Stashed changes

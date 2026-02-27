@@ -1,7 +1,7 @@
 export interface Patient {
   id: string;
   name: string;
-  age: number;
+  age: number; // For now keeping mock age since we return DOB from API, but we'll mock it if missing
   gender: string;
 }
 
@@ -23,14 +23,39 @@ export interface Appointment {
   topic: string;
   doctorId: string;
   report: string;
+  patientSummary?: string;
   status: 'Completed' | 'Pending' | 'Review Required';
 }
 
-export const patients: Patient[] = [
-  { id: 'PT-1001', name: 'Sarah Jenkins', age: 34, gender: 'Female' },
-  { id: 'PT-1002', name: 'Michael Chen', age: 45, gender: 'Male' },
-  { id: 'PT-1003', name: 'Emma Watson', age: 28, gender: 'Female' },
-];
+// We empty the synchronous mocked patient list to enforce using API
+export const patients: Patient[] = [];
+
+// New async fetch functions
+export const fetchPatients = async (): Promise<Patient[]> => {
+  try {
+    const res = await fetch("http://localhost:8000/api/v1/eeszt/patients");
+    const data = await res.json();
+    return data.map((p: any) => ({
+      id: p.id,
+      name: p.name,
+      age: 44, // Dummy age since API only sends raw dob
+      gender: 'Undefined' // Dummy gender since API doesn't hold it
+    }));
+  } catch (e) {
+    console.error(e);
+    return [];
+  }
+};
+
+export const fetchPatientContext = async (patientId: string) => {
+  try {
+    const res = await fetch(`http://localhost:8000/api/v1/eeszt/context/${patientId}`);
+    return await res.json();
+  } catch (e) {
+    console.error(e);
+    return null;
+  }
+};
 
 export const medicalCases: MedicalCase[] = [
   // Sarah Jenkins (PT-1001)
@@ -75,10 +100,10 @@ export const medicalCases: MedicalCase[] = [
 ];
 
 export const appointments: Appointment[] = [
-  // Sarah Jenkins (PT-1001)
+  // Jane Doe (P-10101)
   {
     id: 'APP-001',
-    patientId: 'PT-1001',
+    patientId: 'P-10101',
     caseId: 'CASE-001',
     date: '2023-10-14',
     topic: 'Annual Physical',
@@ -88,7 +113,7 @@ export const appointments: Appointment[] = [
   },
   {
     id: 'APP-002',
-    patientId: 'PT-1001',
+    patientId: 'P-10101',
     caseId: 'CASE-001',
     date: '2023-11-05',
     topic: 'Lab Results Review',
@@ -98,7 +123,7 @@ export const appointments: Appointment[] = [
   },
   {
     id: 'APP-003',
-    patientId: 'PT-1001',
+    patientId: 'P-10101',
     caseId: 'CASE-002',
     date: '2024-02-28',
     topic: 'Dermatology Consult',
@@ -106,7 +131,7 @@ export const appointments: Appointment[] = [
     status: 'Completed',
     report: `Evaluation of new pigmented lesion on right forearm. Lesion is 4mm, asymmetrical with irregular borders. Dermoscopy shows atypical network. Recommended excisional biopsy to rule out melanoma. Procedure scheduled for next week. Patient counseled on sun protection and regular self-examinations.`,
   },
-  
+
   // Michael Chen (PT-1002)
   {
     id: 'APP-004',
@@ -153,9 +178,12 @@ export const getPatientById = (patientId: string) => {
   return patients.find(p => p.id === patientId);
 };
 
-export const updateAppointmentReport = (id: string, newReport: string) => {
+export const updateAppointmentReport = (id: string, newReport: string, newSummary?: string) => {
   const idx = appointments.findIndex(a => a.id === id);
   if (idx !== -1) {
     appointments[idx].report = newReport;
+    if (newSummary) {
+      appointments[idx].patientSummary = newSummary;
+    }
   }
 };

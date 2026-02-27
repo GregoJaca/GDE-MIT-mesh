@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Bot, Calendar, Stethoscope, MessageSquare, ChevronDown, Sparkles, Send } from 'lucide-react';
 import { useAppointmentContext } from '@/layouts/DashboardLayout';
 import ReportViewer from '@/components/ReportViewer';
+import ReactMarkdown from 'react-markdown';
 
 export default function PatientDashboard() {
   const { selectedAppointment, selectedCase } = useAppointmentContext();
@@ -48,28 +49,52 @@ export default function PatientDashboard() {
         </div>
       </div>
 
-      {/* Main Content — Reports */}
+      {/* Main Content — Reports (Tab Content style) */}
       <div className="flex-1 min-h-0 bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200/60 dark:border-slate-800 overflow-hidden transition-colors">
-        <ReportViewer appointmentId={selectedAppointment.id} />
+        <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-900/50 p-8 overflow-auto">
+          <div className="max-w-4xl mx-auto w-full space-y-6">
+            {/* Layman Summary Card */}
+            {selectedAppointment.patientSummary && (
+              <div className="bg-white dark:bg-slate-800 rounded-2xl p-8 border border-brand-mint shadow-sm shadow-brand-mint/20 mb-8">
+                <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100 dark:border-slate-700">
+                  <div className="p-2 bg-brand-mint/20 rounded-lg text-brand-teal">
+                    <Stethoscope className="w-6 h-6" />
+                  </div>
+                  <h2 className="text-lg font-bold text-brand-plum dark:text-brand-lime">Provider's Summary for You</h2>
+                </div>
+                <article className="prose prose-slate dark:prose-invert max-w-none text-brand-slate prose-headings:text-brand-plum prose-headings:font-bold prose-strong:text-brand-teal">
+                  <ReactMarkdown>{selectedAppointment.patientSummary}</ReactMarkdown>
+                </article>
+              </div>
+            )}
+
+            <div className="flex items-center gap-4 mb-4 mt-8">
+              <div className="h-[1px] flex-1 bg-slate-200 dark:bg-slate-800"></div>
+              <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">Full Clinical Record</h3>
+              <div className="h-[1px] flex-1 bg-slate-200 dark:bg-slate-800"></div>
+            </div>
+            <div className="rounded-xl overflow-hidden min-h-[400px]">
+              <ReportViewer appointmentId={selectedAppointment.id} />
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Collapsible AI Agent Panel */}
-      <div className={`shrink-0 bg-white dark:bg-slate-900 rounded-xl shadow-sm border transition-all duration-300 overflow-hidden ${
-        agentOpen 
-          ? 'border-violet-200 dark:border-violet-800' 
-          : 'border-slate-200/60 dark:border-slate-800'
-      }`}>
+      <div className={`shrink-0 bg-white dark:bg-slate-900 rounded-xl shadow-sm border transition-all duration-300 overflow-hidden ${agentOpen
+        ? 'border-violet-200 dark:border-violet-800'
+        : 'border-slate-200/60 dark:border-slate-800'
+        }`}>
         {/* Toggle header */}
         <button
           onClick={() => setAgentOpen(!agentOpen)}
           className="w-full flex items-center gap-3 px-5 py-3 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors"
         >
-          <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors duration-200 ${
-            agentOpen
-              ? 'bg-gradient-to-br from-violet-500 to-purple-600 shadow-md shadow-violet-500/20'
-              : 'bg-slate-100 dark:bg-slate-800'
-          }`}>
-            {agentOpen 
+          <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors duration-200 ${agentOpen
+            ? 'bg-gradient-to-br from-violet-500 to-purple-600 shadow-md shadow-violet-500/20'
+            : 'bg-slate-100 dark:bg-slate-800'
+            }`}>
+            {agentOpen
               ? <Sparkles className="w-4 h-4 text-white" />
               : <Bot className="w-4 h-4 text-slate-400 dark:text-slate-500" />
             }
@@ -121,11 +146,10 @@ export default function PatientDashboard() {
                 />
               </div>
               <button
-                className={`p-2.5 rounded-lg transition-all duration-200 ${
-                  agentMessage.trim()
-                    ? 'bg-gradient-to-r from-violet-500 to-purple-600 text-white shadow-md shadow-violet-500/20 hover:shadow-lg'
-                    : 'bg-slate-100 dark:bg-slate-800 text-slate-400'
-                }`}
+                className={`p-2.5 rounded-lg transition-all duration-200 ${agentMessage.trim()
+                  ? 'bg-gradient-to-r from-violet-500 to-purple-600 text-white shadow-md shadow-violet-500/20 hover:shadow-lg'
+                  : 'bg-slate-100 dark:bg-slate-800 text-slate-400'
+                  }`}
                 disabled={!agentMessage.trim()}
               >
                 <Send className="w-4 h-4" />

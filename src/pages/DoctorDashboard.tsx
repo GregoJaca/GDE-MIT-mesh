@@ -3,7 +3,8 @@ import { useAppointmentContext } from '@/layouts/DashboardLayout';
 import { FileText, UserIcon, Calendar, Mic, Square, Pause, Play, AlertTriangle, ClipboardList, Stethoscope, UploadCloud, File, FileDown, FileCode } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { patients, getPatientById, updateAppointmentReport } from '@/lib/mock-data';
+import { getPatientById, fetchPatients, fetchPatientContext, updateAppointmentReport } from '@/lib/mock-data';
+import type { Patient } from '@/lib/mock-data';
 import { useAudioRecorder } from '@/hooks/useAudioRecorder';
 import { useDropzone } from 'react-dropzone';
 import {
@@ -30,13 +31,24 @@ export default function DoctorDashboard() {
   const selectedPatient = getPatientById(selectedPatientId);
   const [activeTab, setActiveTab] = useState<TabId>('report');
   const [files, setFiles] = useState<File[]>([]);
-  const [viewingFile, setViewingFile] = useState<{file: File, url: string} | null>(null);
+  const [viewingFile, setViewingFile] = useState<{ file: File, url: string } | null>(null);
   const [editableNotes, setEditableNotes] = useState(selectedAppointment?.report || '');
   const [pdfVersion, setPdfVersion] = useState(0);
   const [mdVersion, setMdVersion] = useState(0);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [saveFormat, setSaveFormat] = useState<'markdown' | 'pdf'>('pdf');
+  const [patientsList, setPatientsList] = useState<Patient[]>([]);
+  const [patientContextCache, setPatientContextCache] = useState<any>(null);
 
+  useEffect(() => {
+    fetchPatients().then(setPatientsList);
+  }, []);
+
+  useEffect(() => {
+    if (selectedPatientId) {
+      fetchPatientContext(selectedPatientId).then(setPatientContextCache);
+    }
+  }, [selectedPatientId]);
   // Reset notes whenever the selected appointment changes
   useEffect(() => {
     setEditableNotes(selectedAppointment?.report || '');
@@ -46,7 +58,7 @@ export default function DoctorDashboard() {
     setFiles(prev => [...prev, ...acceptedFiles]);
   };
 
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({ 
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: APP_CONFIG.SUPPORTED_DOCUMENT_TYPES
   });
@@ -85,10 +97,69 @@ export default function DoctorDashboard() {
     { id: 'upload', label: 'Upload Files', icon: UploadCloud },
   ];
 
-  const handleSaveNotes = () => {
+  const handleSaveNotes = async () => {
     if (!selectedAppointment) return;
-    updateAppointmentReport(selectedAppointment.id, editableNotes);
-    setSelectedAppointment({ ...selectedAppointment, report: editableNotes });
+
+    if (patientContextCache) {
+      alert("Consultation processing started in background... (Sending to Backend zero-hallucination agent)");
+      try {
+        const res = await fetch("http://localhost:8000/api/v1/generate-consultation", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            metadata: {
+              patient_id: patientContextCache.patient.id,
+              patient_name: patientContextCache.patient.name,
+              patient_taj: patientContextCache.patient.taj,
+              doctor_id: "D-4099",
+              doctor_name: "Dr. Smith",
+              doctor_seal: "S-14399",
+              encounter_date: new Date().toISOString(),
+              context_documents: patientContextCache.context_documents
+            },
+            transcript: editableNotes
+          })
+        });
+        if (res.ok) {
+          const resultingData = await res.json();
+          console.log(resultingData);
+          const meta = resultingData.administrative_metadata;
+          const clinical = resultingData.clinical_report;
+          const summary = resultingData.patient_summary;
+
+          const formattedReport = `**CLINICAL CONSULTATION REPORT**
+Date: ${new Date(meta.encounter_date).toLocaleString()}
+Doctor: ${meta.doctor_name} (${meta.doctor_seal})
+Patient: ${meta.patient_name} (TAJ: ${meta.patient_taj})
+--------------------------------------------------
+
+**CHIEF COMPLAINTS**
+${clinical.chief_complaints.map((c: any) => `- ${c.finding} [${c.condition_status}] ${c.system_reference_id ? `(Ref: [${c.system_reference_id}](https://www.eeszt.gov.hu/hu/eeszt-portal))` : ''}`).join('\n')}
+
+**ASSESSMENTS**
+${clinical.assessments.map((a: any) => `- ${a.finding} [${a.condition_status}] ${a.system_reference_id ? `(Ref: [${a.system_reference_id}](https://www.eeszt.gov.hu/hu/eeszt-portal))` : ''}`).join('\n')}
+
+**MEDICATIONS / ACTIONS**
+${clinical.medications.map((m: any) => `- ${m.action_type}: ${m.description} (${m.timeframe || 'ASAP'}) ${m.system_reference_id ? `(Ref: [${m.system_reference_id}](https://www.eeszt.gov.hu/hu/eeszt-portal))` : ''}`).join('\n')}
+
+--------------------------------------------------
+**PATIENT SUMMARY (LAYMAN)**
+${summary.layman_explanation}
+`;
+          const laymanReport = `**YOUR VISIT SUMMARY**
+${summary.layman_explanation}
+
+**YOUR TO-DOS & ACTION ITEMS**
+${summary.actionables.map((a: any) => `- ${a.description} (${a.timeframe || 'ASAP'})`).join('\n')}
+`;
+          updateAppointmentReport(selectedAppointment.id, formattedReport, laymanReport);
+          setSelectedAppointment({ ...selectedAppointment, report: formattedReport, patientSummary: laymanReport });
+        }
+      } catch (err) {
+        console.error(err);
+      }
+
+    }
 
     if (saveFormat === 'pdf') {
       generateAndStorePdf({
@@ -123,7 +194,7 @@ export default function DoctorDashboard() {
               <SelectValue placeholder="Select a patient..." />
             </SelectTrigger>
             <SelectContent>
-              {patients.map((p) => (
+              {patientsList.map((p) => (
                 <SelectItem key={p.id} value={p.id} className="font-medium cursor-pointer">
                   {p.name} <span className="text-slate-400 font-normal ml-2">({p.id})</span>
                 </SelectItem>
@@ -170,11 +241,10 @@ export default function DoctorDashboard() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                isActive
-                  ? 'bg-brand-teal/10 text-brand-teal shadow-sm'
-                  : 'text-brand-slate dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-brand-plum dark:hover:text-white'
-              }`}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${isActive
+                ? 'bg-brand-teal/10 text-brand-teal shadow-sm'
+                : 'text-brand-slate dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 hover:text-brand-plum dark:hover:text-white'
+                }`}
             >
               <Icon className="w-4 h-4" />
               {tab.label}
@@ -185,7 +255,7 @@ export default function DoctorDashboard() {
 
       {/* Tab Content */}
       <div className="flex-1 min-h-0 bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-slate-200/60 dark:border-slate-800 overflow-hidden transition-colors">
-        
+
         {/* REPORT TAB — PDF Viewer */}
         {activeTab === 'report' && (
           <ReportViewer appointmentId={selectedAppointment.id} pdfVersion={pdfVersion} mdVersion={mdVersion} />
@@ -228,14 +298,14 @@ export default function DoctorDashboard() {
                       <p className="text-xs text-brand-slate dark:text-slate-400">Dictate notes to automatically transcribe them into the report below.</p>
                     </div>
                   </div>
-                  
+
                   <div className="flex items-center gap-3">
                     {micError && (
                       <div className="text-xs text-red-600 flex items-center gap-1 bg-red-50 p-2 rounded-md border border-red-200">
                         <AlertTriangle className="w-3 h-3" /> {micError}
                       </div>
                     )}
-                    
+
                     {isRecording && (
                       <div className="flex items-center gap-2 mr-2">
                         <span className="relative flex h-3 w-3">
@@ -247,7 +317,7 @@ export default function DoctorDashboard() {
                         </span>
                       </div>
                     )}
-                    
+
                     {!isRecording ? (
                       <Button onClick={startRecording} className="bg-red-600 hover:bg-red-700 text-white shadow-sm flex items-center gap-2">
                         <Mic className="w-4 h-4" />
@@ -264,7 +334,7 @@ export default function DoctorDashboard() {
                             <Pause className="w-4 h-4" /> Pause
                           </Button>
                         )}
-                        <Button 
+                        <Button
                           disabled={isTranscribing}
                           onClick={async () => {
                             try {
@@ -298,7 +368,7 @@ export default function DoctorDashboard() {
                               setIsTranscribing(false);
                             }
                           }}
-                           variant="outline" 
+                          variant="outline"
                           className="flex items-center gap-2 border-slate-300 text-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800"
                         >
                           <Square className="w-4 h-4" />
@@ -342,30 +412,27 @@ export default function DoctorDashboard() {
                 <div className="relative flex items-center bg-slate-100 dark:bg-slate-800 rounded-xl p-1 shadow-inner">
                   {/* Sliding pill indicator */}
                   <div
-                    className={`absolute top-1 bottom-1 rounded-lg bg-white dark:bg-slate-700 shadow-md transition-all duration-300 ease-in-out ${
-                      saveFormat === 'markdown'
+                    className={`absolute top-1 bottom-1 rounded-lg bg-white dark:bg-slate-700 shadow-md transition-all duration-300 ease-in-out ${saveFormat === 'markdown'
                         ? 'left-1 w-[calc(50%-4px)]'
                         : 'left-[calc(50%+2px)] w-[calc(50%-4px)]'
-                    }`}
+                      }`}
                   />
                   <button
                     onClick={() => setSaveFormat('markdown')}
-                    className={`relative z-10 flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors duration-300 min-w-[120px] justify-center ${
-                      saveFormat === 'markdown'
+                    className={`relative z-10 flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors duration-300 min-w-[120px] justify-center ${saveFormat === 'markdown'
                         ? 'text-brand-plum dark:text-brand-lime'
                         : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'
-                    }`}
+                      }`}
                   >
                     <FileCode className="w-4 h-4" />
                     Markdown
                   </button>
                   <button
                     onClick={() => setSaveFormat('pdf')}
-                    className={`relative z-10 flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors duration-300 min-w-[120px] justify-center ${
-                      saveFormat === 'pdf'
+                    className={`relative z-10 flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors duration-300 min-w-[120px] justify-center ${saveFormat === 'pdf'
                         ? 'text-brand-plum dark:text-brand-lime'
                         : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'
-                    }`}
+                      }`}
                   >
                     <FileText className="w-4 h-4" />
                     PDF
@@ -380,7 +447,6 @@ export default function DoctorDashboard() {
                   <FileDown className="w-4 h-4" />
                   {saveFormat === 'pdf' ? 'Generate PDF & Save' : 'Generate Markdown & Save'}
                 </button>
-
                 <button
                   className="px-6 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-brand-slate/5 text-brand-slate dark:text-slate-300 font-medium rounded-lg shadow-sm transition-colors"
                   onClick={() => {
@@ -405,8 +471,8 @@ export default function DoctorDashboard() {
                   <UploadCloud className="w-5 h-5 text-brand-teal" />
                   Upload Documents
                 </h3>
-                <div 
-                  {...getRootProps()} 
+                <div
+                  {...getRootProps()}
                   className={`border-2 border-dashed rounded-xl p-10 flex flex-col items-center justify-center text-center cursor-pointer transition-all duration-200 group
                     ${isDragActive ? 'border-brand-teal bg-brand-teal/5' : 'border-slate-200 dark:border-slate-700 hover:border-brand-teal/50 hover:bg-slate-50 dark:hover:bg-slate-800'}`}
                 >
@@ -427,8 +493,8 @@ export default function DoctorDashboard() {
                     Uploaded PDF Files ({files.length})
                   </p>
                   {files.map((file, i) => (
-                    <div 
-                      key={i} 
+                    <div
+                      key={i}
                       onClick={() => setViewingFile({ file, url: URL.createObjectURL(file) })}
                       className="flex items-center p-3 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 shadow-sm hover:border-brand-teal/50 hover:shadow-md cursor-pointer transition-all"
                     >
@@ -460,10 +526,10 @@ export default function DoctorDashboard() {
           </DialogHeader>
           <div className="flex-1 overflow-hidden relative bg-slate-100 dark:bg-slate-900 w-full">
             {viewingFile && (
-              <iframe 
-                src={`${viewingFile.url}#toolbar=0`} 
-                className="w-full h-full border-0 absolute inset-0" 
-                title="Document Preview" 
+              <iframe
+                src={`${viewingFile.url}#toolbar=0`}
+                className="w-full h-full border-0 absolute inset-0"
+                title="Document Preview"
               />
             )}
           </div>

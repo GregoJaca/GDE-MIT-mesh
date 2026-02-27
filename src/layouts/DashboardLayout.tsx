@@ -35,9 +35,9 @@ interface AppointmentContextType {
 
 export const AppointmentContext = createContext<AppointmentContextType>({
   selectedAppointment: null,
-  setSelectedAppointment: () => {},
-  selectedPatientId: 'PT-1001',
-  setSelectedPatientId: () => {},
+  setSelectedAppointment: () => { },
+  selectedPatientId: 'P-10101',
+  setSelectedPatientId: () => { },
   selectedCase: null,
 });
 
@@ -49,7 +49,7 @@ export default function DashboardLayout({ role }: { role: 'patient' | 'doctor' }
   const { theme, setTheme } = useTheme();
 
   // For doctors: switchable patient; for patients: hardcoded
-  const [selectedPatientId, setSelectedPatientId] = useState('PT-1001');
+  const [selectedPatientId, setSelectedPatientId] = useState('P-10101');
   const cases = useMemo(
     () => getCasesByPatient(selectedPatientId),
     [selectedPatientId]
@@ -92,13 +92,13 @@ export default function DashboardLayout({ role }: { role: 'patient' | 'doctor' }
     }
   };
 
-  const navItems = role === 'doctor' 
+  const navItems = role === 'doctor'
     ? [
-        { label: 'Dashboard', icon: LayoutDashboard, path: '/doctor' },
-      ]
+      { label: 'Dashboard', icon: LayoutDashboard, path: '/doctor' },
+    ]
     : [
-        { label: 'Dashboard', icon: LayoutDashboard, path: '/patient' },
-      ];
+      { label: 'Dashboard', icon: LayoutDashboard, path: '/patient' },
+    ];
 
   const getCaseStatusStyle = (status: string) => {
     switch (status) {
@@ -139,11 +139,10 @@ export default function DashboardLayout({ role }: { role: 'patient' | 'doctor' }
                 <button
                   key={item.path}
                   onClick={() => navigate(item.path)}
-                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                    isActive 
-                      ? 'bg-brand-teal/10 text-brand-teal shadow-sm' 
-                      : 'text-brand-slate hover:bg-slate-50 hover:text-brand-plum'
-                  }`}
+                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all ${isActive
+                    ? 'bg-brand-teal/10 text-brand-teal shadow-sm'
+                    : 'text-brand-slate hover:bg-slate-50 hover:text-brand-plum'
+                    }`}
                 >
                   <Icon className={`w-4 h-4 ${isActive ? 'text-brand-teal' : 'text-slate-400'}`} />
                   {item.label}
@@ -178,11 +177,10 @@ export default function DashboardLayout({ role }: { role: 'patient' | 'doctor' }
                     {/* Case Folder Header */}
                     <button
                       onClick={() => toggleCase(medCase.id)}
-                      className={`w-full text-left px-3 py-2.5 rounded-xl flex items-center gap-2.5 transition-all duration-200 relative ${
-                        isActiveCase
+                      className={`w-full text-left px-3 py-2.5 rounded-xl flex items-center gap-2.5 transition-all duration-200 relative ${isActiveCase
                           ? 'bg-gradient-to-r from-brand-teal/10 to-brand-mint/10 dark:from-brand-teal/15 dark:to-brand-mint/5 shadow-sm'
                           : 'hover:bg-slate-50 dark:hover:bg-slate-800/60'
-                      }`}
+                        }`}
                     >
                       {/* Expand chevron */}
                       <div className={`transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}>
@@ -190,19 +188,17 @@ export default function DashboardLayout({ role }: { role: 'patient' | 'doctor' }
                       </div>
 
                       {/* Emoji icon with gradient bg */}
-                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-base shrink-0 transition-all duration-200 ${
-                        isActiveCase
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-base shrink-0 transition-all duration-200 ${isActiveCase
                           ? 'bg-gradient-to-br from-brand-teal/20 to-brand-lime/20 shadow-sm'
                           : 'bg-slate-100 dark:bg-slate-800 group-hover:bg-slate-200/80 dark:group-hover:bg-slate-700'
-                      }`}>
+                        }`}>
                         {medCase.icon}
                       </div>
 
                       {/* Case info */}
                       <div className="flex-1 min-w-0">
-                        <span className={`text-sm font-semibold truncate block leading-tight ${
-                          isActiveCase ? 'text-brand-plum dark:text-brand-lime' : 'text-slate-700 dark:text-slate-300'
-                        }`}>
+                        <span className={`text-sm font-semibold truncate block leading-tight ${isActiveCase ? 'text-brand-plum dark:text-brand-lime' : 'text-slate-700 dark:text-slate-300'
+                          }`}>
                           {medCase.title}
                         </span>
                         <div className="flex items-center gap-2 mt-0.5">
@@ -218,9 +214,8 @@ export default function DashboardLayout({ role }: { role: 'patient' | 'doctor' }
 
                     {/* Nested Appointments */}
                     <div
-                      className={`overflow-hidden transition-all duration-300 ease-in-out ${
-                        isExpanded ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'
-                      }`}
+                      className={`overflow-hidden transition-all duration-300 ease-in-out ${isExpanded ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'
+                        }`}
                     >
                       <div className="ml-4 pl-4 border-l-2 border-slate-100 dark:border-slate-800 mt-1 mb-1 space-y-0.5">
                         {caseApps.map((app) => {
@@ -229,11 +224,10 @@ export default function DashboardLayout({ role }: { role: 'patient' | 'doctor' }
                             <button
                               key={app.id}
                               onClick={() => setSelectedAppointment(app)}
-                              className={`w-full text-left px-3 py-2 rounded-lg flex items-center gap-3 transition-all duration-150 relative group/item ${
-                                isSelected
+                              className={`w-full text-left px-3 py-2 rounded-lg flex items-center gap-3 transition-all duration-150 relative group/item ${isSelected
                                   ? 'bg-brand-teal/8 dark:bg-brand-teal/10'
                                   : 'hover:bg-slate-50 dark:hover:bg-slate-800/40'
-                              }`}
+                                }`}
                             >
                               {/* Active indicator bar */}
                               {isSelected && (
@@ -241,15 +235,13 @@ export default function DashboardLayout({ role }: { role: 'patient' | 'doctor' }
                               )}
 
                               {/* Status dot */}
-                              <div className={`w-2 h-2 rounded-full shrink-0 ${getAppStatusDot(app.status)} ${
-                                isSelected ? 'ring-2 ring-brand-teal/20' : ''
-                              }`} />
+                              <div className={`w-2 h-2 rounded-full shrink-0 ${getAppStatusDot(app.status)} ${isSelected ? 'ring-2 ring-brand-teal/20' : ''
+                                }`} />
 
                               {/* Appointment info */}
                               <div className="flex-1 min-w-0">
-                                <span className={`text-[13px] font-medium truncate block leading-tight ${
-                                  isSelected ? 'text-brand-teal dark:text-brand-lime' : 'text-slate-600 dark:text-slate-400 group-hover/item:text-slate-800 dark:group-hover/item:text-slate-200'
-                                }`}>
+                                <span className={`text-[13px] font-medium truncate block leading-tight ${isSelected ? 'text-brand-teal dark:text-brand-lime' : 'text-slate-600 dark:text-slate-400 group-hover/item:text-slate-800 dark:group-hover/item:text-slate-200'
+                                  }`}>
                                   {app.topic}
                                 </span>
                                 <span className="text-[11px] text-slate-400 dark:text-slate-500 tabular-nums">
@@ -281,7 +273,7 @@ export default function DashboardLayout({ role }: { role: 'patient' | 'doctor' }
             </button>
           </div>
         </aside>
-        
+
         {/* Main Content */}
         <main className="flex-1 flex flex-col h-screen overflow-hidden">
           <header className="h-14 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-8 shrink-0 transition-colors">
@@ -289,7 +281,7 @@ export default function DashboardLayout({ role }: { role: 'patient' | 'doctor' }
               {role === 'doctor' ? 'Provider Portal' : 'Patient Portal'}
             </h2>
             <div className="flex items-center gap-4">
-              
+
               {/* Settings Dialog */}
               <Dialog>
                 <DialogTrigger asChild>
@@ -312,9 +304,9 @@ export default function DashboardLayout({ role }: { role: 'patient' | 'doctor' }
                           Toggle between light and dark themes.
                         </p>
                       </div>
-                      <Switch 
-                        id="dark-mode" 
-                        checked={theme === 'dark'} 
+                      <Switch
+                        id="dark-mode"
+                        checked={theme === 'dark'}
                         onCheckedChange={(checked) => setTheme(checked ? 'dark' : 'light')}
                       />
                     </div>
@@ -333,10 +325,10 @@ export default function DashboardLayout({ role }: { role: 'patient' | 'doctor' }
                   <DropdownMenuLabel className="font-normal text-slate-800 dark:text-slate-200">
                     <div className="flex flex-col space-y-1">
                       <p className="text-sm font-medium leading-none text-brand-plum dark:text-brand-lime">
-                        {role === 'doctor' ? 'Dr. Sarah Jenkins' : 'Mark Smith'}
+                        {role === 'doctor' ? 'Dr. Sarah Jenkins' : 'Jane Doe'}
                       </p>
                       <p className="text-xs leading-none text-slate-500 dark:text-slate-400">
-                        {role === 'doctor' ? 'Provider ID: DR-002' : 'Patient ID: PT-1001'}
+                        {role === 'doctor' ? 'Provider ID: D-4099' : 'Patient ID: P-10101'}
                       </p>
                     </div>
                   </DropdownMenuLabel>
@@ -350,8 +342,8 @@ export default function DashboardLayout({ role }: { role: 'patient' | 'doctor' }
                     <span>Notifications</span>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator className="dark:bg-slate-800" />
-                  <DropdownMenuItem 
-                    className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950/50" 
+                  <DropdownMenuItem
+                    className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950/50"
                     onClick={() => navigate('/')}
                   >
                     <LogOut className="mr-2 h-4 w-4" />
