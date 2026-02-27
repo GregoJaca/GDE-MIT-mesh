@@ -13,14 +13,11 @@ function App() {
         {/* Patient Routes */}
         <Route path="/patient" element={<DashboardLayout role="patient" />}>
           <Route index element={<PatientDashboard />} />
-          <Route path="records" element={<div className="p-8 text-center text-slate-500">Records View Under Construction</div>} />
         </Route>
 
         {/* Doctor Routes */}
         <Route path="/doctor" element={<DashboardLayout role="doctor" />}>
           <Route index element={<DoctorDashboard />} />
-          <Route path="patients" element={<div className="p-8 text-center text-slate-500">Patients List Under Construction</div>} />
-          <Route path="analytics" element={<div className="p-8 text-center text-slate-500">AI Analytics Interface Under Construction</div>} />
         </Route>
 
         {/* Fallback */}
