@@ -26,6 +26,12 @@
 - **Backend File Upload Integration**: [missing]
 - **General Profile & Settings Dialogs**: [minimal implementation]
 - **deleting audio when sended to the transcriber**: [done]
+- **delete view bottom**
+- **folders**
+- **agent on the side**
+- **files in squares for the patient**- **deleting audio when sended to the transcriber**: [done]
+
+
 # TODO
 
 - [x] Extract reporting formatting configuration into `.json` map (done)
