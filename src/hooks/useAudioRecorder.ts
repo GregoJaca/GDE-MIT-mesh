@@ -25,6 +25,13 @@ export function addRecording(recording: Recording) {
   }
 }
 
+export function clearRecordingsForAppointment(appointmentId: string) {
+  const index = recordingsStore.findIndex(r => r.appointmentId === appointmentId);
+  if (index !== -1) {
+    recordingsStore.splice(index, 1);
+  }
+}
+
 export function useAudioRecorder(appointmentId: string) {
   const [isRecording, setIsRecording] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
@@ -142,6 +149,11 @@ export function useAudioRecorder(appointmentId: string) {
     setRecordings(getRecordingsByAppointment(appointmentId));
   }, [appointmentId]);
 
+  const clearRecordings = useCallback(() => {
+    clearRecordingsForAppointment(appointmentId);
+    setRecordings(getRecordingsByAppointment(appointmentId));
+  }, [appointmentId]);
+
   return {
     isRecording,
     isPaused,
@@ -153,5 +165,6 @@ export function useAudioRecorder(appointmentId: string) {
     pauseRecording,
     resumeRecording,
     refreshRecordings,
+    clearRecordings,
   };
 }

@@ -34,24 +34,16 @@ export const generateAndStorePdf = (data: ReportData): void => {
   doc.setDrawColor(200);
   doc.line(margin, 38, pageWidth - margin, 38);
 
-  // Vitals Placeholder (Mock Data Example)
-  doc.setFontSize(12);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(0);
-  doc.text('Vitals', margin, 48);
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
-  doc.text('Blood Pressure: 118/75   |   Heart Rate: 72 bpm   |   Weight: 142 lbs   |   Temp: 98.6\u00b0F', margin, 56);
-
   // Clinical Notes
   doc.setFontSize(12);
   doc.setFont('helvetica', 'bold');
-  doc.text('Clinical Notes', margin, 70);
+  doc.setTextColor(0);
+  doc.text('Clinical Notes', margin, 50);
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
   
   const lines = doc.splitTextToSize(data.reportNotes, usableWidth);
-  doc.text(lines, margin, 80);
+  doc.text(lines, margin, 60);
 
   // Footer
   const pageCount = doc.getNumberOfPages();

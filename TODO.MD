@@ -9,4 +9,4 @@
 - **AI Transcription Backend API**: [minimal implementation] (Simulated locally)
 - **Backend File Upload Integration**: [missing]
 - **General Profile & Settings Dialogs**: [minimal implementation]
-- **deleting audio when sended to the transcriber**: [missing]
+- **deleting audio when sended to the transcriber**: [done]

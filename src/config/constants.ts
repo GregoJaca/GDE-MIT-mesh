@@ -6,11 +6,5 @@ export const APP_CONFIG = {
   SCRIBE_DELAY_MS: 1000,
   SUPPORTED_DOCUMENT_TYPES: {
     'application/pdf': ['.pdf']
-  },
-  VITAL_SIGNS: [
-    { label: 'Blood Pressure', value: '118/75' },
-    { label: 'Heart Rate', value: '72 bpm' },
-    { label: 'Weight', value: '142 lbs' },
-    { label: 'Temperature', value: '98.6°F' },
-  ]
+  }
 };

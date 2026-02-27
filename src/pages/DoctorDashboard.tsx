@@ -58,6 +58,7 @@ export default function DoctorDashboard() {
     pauseRecording,
     resumeRecording,
     refreshRecordings,
+    clearRecordings
   } = useAudioRecorder(selectedAppointment?.id ?? '');
 
   useEffect(() => {
@@ -251,6 +252,7 @@ export default function DoctorDashboard() {
                             stopRecording();
                             // Simulate AI Transcription delay
                             setTimeout(() => {
+                              clearRecordings();
                               setEditableNotes(prev => 
                                 prev + (prev ? '\n\n' : '') + 
                                 '[AI Transcription]: Patient presents with continued joint discomfort. Vitals are stable. Advised to continue current physical therapy regimen for another 4 weeks and return for follow-up.'
@@ -281,16 +283,6 @@ export default function DoctorDashboard() {
                     </div>
                   </div>
                 )}
-              </div>
-
-              {/* Vitals */}
-              <div className="grid grid-cols-4 gap-4">
-                {APP_CONFIG.VITAL_SIGNS.map((v) => (
-                  <div key={v.label} className="bg-slate-50 dark:bg-slate-800 rounded-lg p-4 border border-slate-100 dark:border-slate-700">
-                    <p className="text-xs text-slate-500 dark:text-slate-400 font-medium uppercase tracking-wider mb-1">{v.label}</p>
-                    <p className="text-lg font-bold text-slate-900 dark:text-white">{v.value}</p>
-                  </div>
-                ))}
               </div>
 
               {/* Editable Notes Textbox */}
