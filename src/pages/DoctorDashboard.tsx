@@ -3,7 +3,7 @@ import { useAppointmentContext } from '@/layouts/DashboardLayout';
 import { FileText, UserIcon, Calendar, Mic, Square, Pause, Play, AlertTriangle, ClipboardList, Stethoscope, UploadCloud, File } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
-import { patients, getPatientById } from '@/lib/mock-data';
+import { patients, getPatientById, updateAppointmentReport } from '@/lib/mock-data';
 import { useAudioRecorder } from '@/hooks/useAudioRecorder';
 import { useDropzone } from 'react-dropzone';
 import {
@@ -13,6 +13,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import ReportViewer from '@/components/ReportViewer';
+import { jsPDF } from 'jspdf';
+import { setGeneratedPdf, bumpPdfStoreVersion } from '@/lib/pdf-store';
 
 function formatDuration(seconds: number): string {
   const m = Math.floor(seconds / 60).toString().padStart(2, '0');
@@ -20,14 +22,21 @@ function formatDuration(seconds: number): string {
   return `${m}:${s}`;
 }
 
-type TabId = 'report' | 'notes' | 'recorder' | 'upload';
+type TabId = 'report' | 'notes' | 'upload';
 
 export default function DoctorDashboard() {
-  const { selectedAppointment, selectedPatientId, setSelectedPatientId } = useAppointmentContext();
+  const { selectedAppointment, setSelectedAppointment, selectedPatientId, setSelectedPatientId } = useAppointmentContext();
   const selectedPatient = getPatientById(selectedPatientId);
   const [activeTab, setActiveTab] = useState<TabId>('report');
   const [files, setFiles] = useState<File[]>([]);
   const [viewingFile, setViewingFile] = useState<{file: File, url: string} | null>(null);
+  const [editableNotes, setEditableNotes] = useState(selectedAppointment?.report || '');
+  const [pdfVersion, setPdfVersion] = useState(0);
+
+  // Reset notes whenever the selected appointment changes
+  useEffect(() => {
+    setEditableNotes(selectedAppointment?.report || '');
+  }, [selectedAppointment?.id]);
 
   const onDrop = (acceptedFiles: File[]) => {
     setFiles(prev => [...prev, ...acceptedFiles]);
@@ -67,10 +76,77 @@ export default function DoctorDashboard() {
 
   const tabs: { id: TabId; label: string; icon: typeof FileText }[] = [
     { id: 'report', label: 'Report', icon: FileText },
-    { id: 'notes', label: 'Clinical Notes', icon: ClipboardList },
-    { id: 'recorder', label: 'Voice Recorder', icon: Mic },
+    { id: 'notes', label: 'Clinical Notes & Audio', icon: ClipboardList },
     { id: 'upload', label: 'Upload Files', icon: UploadCloud },
   ];
+
+  const handleSaveNotes = (isPdf = false) => {
+    if (!selectedAppointment) return;
+    updateAppointmentReport(selectedAppointment.id, editableNotes);
+    setSelectedAppointment({ ...selectedAppointment, report: editableNotes });
+
+    if (isPdf) {
+      // Generate a real PDF from the notes using jspdf
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const margin = 20;
+      const usableWidth = pageWidth - margin * 2;
+
+      // Title
+      doc.setFontSize(18);
+      doc.setFont('helvetica', 'bold');
+      doc.text(selectedAppointment.topic, margin, 25);
+
+      // Meta line
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(120);
+      doc.text(
+        `Provider: ${selectedAppointment.doctorId}  |  Date: ${new Date(selectedAppointment.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}  |  Patient: ${selectedPatientId}`,
+        margin, 34
+      );
+
+      // Divider
+      doc.setDrawColor(200);
+      doc.line(margin, 38, pageWidth - margin, 38);
+
+      // Vitals
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(0);
+      doc.text('Vitals', margin, 48);
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.text('Blood Pressure: 118/75   |   Heart Rate: 72 bpm   |   Weight: 142 lbs   |   Temp: 98.6\u00b0F', margin, 56);
+
+      // Clinical Notes
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Clinical Notes', margin, 70);
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      const lines = doc.splitTextToSize(editableNotes, usableWidth);
+      doc.text(lines, margin, 80);
+
+      // Footer
+      const pageCount = doc.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setTextColor(160);
+        doc.text(`MediCore — Generated ${new Date().toLocaleString()} — Page ${i} of ${pageCount}`, margin, doc.internal.pageSize.getHeight() - 10);
+      }
+
+      const blob = doc.output('blob');
+      const blobUrl = URL.createObjectURL(blob);
+      setGeneratedPdf(selectedAppointment.id, blobUrl);
+      bumpPdfStoreVersion();
+      setPdfVersion(v => v + 1);
+      alert('PDF generated and saved to this appointment\'s Report tab!');
+    } else {
+      alert('Notes saved successfully as a draft.');
+    }
+  };
 
   return (
     <div className="flex flex-col h-full gap-4">
@@ -140,7 +216,7 @@ export default function DoctorDashboard() {
         
         {/* REPORT TAB — PDF Viewer */}
         {activeTab === 'report' && (
-          <ReportViewer appointmentId={selectedAppointment.id} />
+          <ReportViewer appointmentId={selectedAppointment.id} pdfVersion={pdfVersion} />
         )}
 
         {/* CLINICAL NOTES TAB */}
@@ -168,58 +244,26 @@ export default function DoctorDashboard() {
                 </div>
               </div>
 
-              {/* Vitals */}
-              <div className="grid grid-cols-4 gap-4">
-                {[
-                  { label: 'Blood Pressure', value: '118/75' },
-                  { label: 'Heart Rate', value: '72 bpm' },
-                  { label: 'Weight', value: '142 lbs' },
-                  { label: 'Temperature', value: '98.6°F' },
-                ].map((v) => (
-                  <div key={v.label} className="bg-slate-50 dark:bg-slate-800 rounded-lg p-4 border border-slate-100 dark:border-slate-700">
-                    <p className="text-xs text-slate-500 dark:text-slate-400 font-medium uppercase tracking-wider mb-1">{v.label}</p>
-                    <p className="text-lg font-bold text-slate-900 dark:text-white">{v.value}</p>
-                  </div>
-                ))}
-              </div>
-
-              {/* Notes */}
-              <div className="prose prose-slate max-w-none dark:prose-invert">
-                <h3 className="text-lg font-bold text-brand-plum dark:text-brand-lime border-b border-slate-100 dark:border-slate-800 pb-2 mb-4">Clinical Notes</h3>
-                <div className="text-brand-slate dark:text-slate-300 leading-relaxed whitespace-pre-wrap bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200/50 dark:border-slate-700 p-6 font-serif text-lg">
-                  {selectedAppointment.report}
-                </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="pt-6 border-t border-slate-100 dark:border-slate-800 flex gap-4">
-                <button className="px-6 py-2.5 bg-brand-teal hover:bg-brand-teal/90 text-white font-medium rounded-lg shadow-sm transition-colors">
-                  Add Addendum
-                </button>
-                <button className="px-6 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-brand-slate/5 text-brand-slate dark:text-slate-300 font-medium rounded-lg shadow-sm transition-colors">
-                  Request Lab Results
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* RECORDER TAB */}
-        {activeTab === 'recorder' && (
-          <div className="p-8 overflow-auto h-full">
-            <div className="max-w-3xl mx-auto space-y-6">
-              <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200/60 dark:border-slate-700 overflow-hidden">
-                <div className="p-5 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
+              {/* Voice Recorder & AI Scribe Integration */}
+              <div className="bg-slate-50 dark:bg-slate-800/50 p-6 rounded-xl border border-slate-200/60 dark:border-slate-700">
+                <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-3">
-                    <div className={`p-2 rounded-lg ${isRecording ? 'bg-red-100 dark:bg-red-900/30 text-red-600' : 'bg-brand-slate/10 text-brand-slate'}`}>
+                    <div className={`p-2 rounded-lg ${isRecording ? 'bg-red-100 dark:bg-red-900/30 text-red-600' : 'bg-brand-slate/10 text-brand-teal dark:text-brand-lime'}`}>
                       <Mic className="w-5 h-5" />
                     </div>
                     <div>
-                      <h3 className="text-base font-bold text-brand-plum dark:text-brand-lime">Voice Recorder</h3>
-                      <p className="text-xs text-brand-slate dark:text-slate-400">Dictate notes during or after the appointment</p>
+                      <h3 className="text-base font-bold text-brand-plum dark:text-brand-lime">Voice Recorder & AI Scribe</h3>
+                      <p className="text-xs text-brand-slate dark:text-slate-400">Dictate notes to automatically transcribe them into the report below.</p>
                     </div>
                   </div>
+                  
                   <div className="flex items-center gap-3">
+                    {micError && (
+                      <div className="text-xs text-red-600 flex items-center gap-1 bg-red-50 p-2 rounded-md border border-red-200">
+                        <AlertTriangle className="w-3 h-3" /> {micError}
+                      </div>
+                    )}
+                    
                     {isRecording && (
                       <div className="flex items-center gap-2 mr-2">
                         <span className="relative flex h-3 w-3">
@@ -231,6 +275,7 @@ export default function DoctorDashboard() {
                         </span>
                       </div>
                     )}
+                    
                     {!isRecording ? (
                       <Button onClick={startRecording} className="bg-brand-teal hover:bg-brand-teal/90 text-white shadow-sm flex items-center gap-2">
                         <Mic className="w-4 h-4" />
@@ -247,43 +292,84 @@ export default function DoctorDashboard() {
                             <Pause className="w-4 h-4" /> Pause
                           </Button>
                         )}
-                        <Button onClick={stopRecording} variant="outline" className="flex items-center gap-2 border-red-300 text-red-700 hover:bg-red-50 dark:hover:bg-red-950/50">
-                          <Square className="w-4 h-4" /> Stop & Save
+                        <Button 
+                          onClick={() => {
+                            stopRecording();
+                            // Simulate AI Transcription delay
+                            setTimeout(() => {
+                              setEditableNotes(prev => 
+                                prev + (prev ? '\n\n' : '') + 
+                                '[AI Transcription]: Patient presents with continued joint discomfort. Vitals are stable. Advised to continue current physical therapy regimen for another 4 weeks and return for follow-up.'
+                              );
+                            }, 1000);
+                          }} 
+                          variant="outline" 
+                          className="flex items-center gap-2 border-red-300 text-red-700 hover:bg-red-50 dark:hover:bg-red-950/50"
+                        >
+                          <Square className="w-4 h-4" /> Stop & Transcribe
                         </Button>
                       </>
                     )}
                   </div>
                 </div>
 
-                {micError && (
-                  <div className="mx-5 mt-4 p-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg flex items-center gap-3 text-sm text-red-700 dark:text-red-400">
-                    <AlertTriangle className="w-4 h-4 shrink-0" /> {micError}
-                  </div>
-                )}
-
-                <div className="p-5">
-                  {recordings.length > 0 ? (
-                    <div className="space-y-3">
-                      <p className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Saved Recordings ({recordings.length})</p>
+                {recordings.length > 0 && (
+                  <div className="pt-4 mt-2 border-t border-slate-200 dark:border-slate-700">
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Saved Audio Log</p>
+                    <div className="space-y-2">
                       {recordings.map((rec) => (
-                        <div key={rec.id} className="flex items-center gap-4 p-3 bg-slate-50 dark:bg-slate-800 rounded-lg border border-slate-100 dark:border-slate-700 hover:border-brand-teal/30 transition-colors">
-                          <div className="p-2 bg-white dark:bg-slate-900 rounded-md border border-slate-200 dark:border-slate-700 shadow-sm">
-                            <Mic className="w-4 h-4 text-brand-teal" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-brand-plum dark:text-brand-lime">Recording — {formatDuration(rec.duration)}</p>
-                            <p className="text-xs text-brand-slate dark:text-slate-400">{new Date(rec.timestamp).toLocaleString()}</p>
-                          </div>
-                          <audio controls src={rec.url} className="h-8 max-w-[200px]" />
+                        <div key={rec.id} className="flex items-center gap-4 p-2 bg-white dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-800">
+                          <Mic className="w-3.5 h-3.5 text-brand-teal ml-2" />
+                          <span className="text-xs font-semibold text-brand-plum dark:text-slate-300 flex-1">Recording — {formatDuration(rec.duration)}</span>
+                          <audio controls src={rec.url} className="h-7 max-w-[200px]" />
                         </div>
                       ))}
                     </div>
-                  ) : (
-                    <p className="text-sm text-brand-slate dark:text-slate-400 text-center py-4">
-                      No recordings yet. Press <strong>Start Recording</strong> to dictate notes.
-                    </p>
-                  )}
-                </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Vitals */}
+              <div className="grid grid-cols-4 gap-4">
+                {[
+                  { label: 'Blood Pressure', value: '118/75' },
+                  { label: 'Heart Rate', value: '72 bpm' },
+                  { label: 'Weight', value: '142 lbs' },
+                  { label: 'Temperature', value: '98.6°F' },
+                ].map((v) => (
+                  <div key={v.label} className="bg-slate-50 dark:bg-slate-800 rounded-lg p-4 border border-slate-100 dark:border-slate-700">
+                    <p className="text-xs text-slate-500 dark:text-slate-400 font-medium uppercase tracking-wider mb-1">{v.label}</p>
+                    <p className="text-lg font-bold text-slate-900 dark:text-white">{v.value}</p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Editable Notes Textbox */}
+              <div className="flex flex-col">
+                <h3 className="text-lg font-bold text-brand-plum dark:text-brand-lime border-b border-slate-100 dark:border-slate-800 pb-2 mb-4">Clinical Report Notes</h3>
+                <textarea
+                  value={editableNotes}
+                  onChange={(e) => setEditableNotes(e.target.value)}
+                  placeholder="Type your clinical notes here, or record audio to have AI auto-transcribe it..."
+                  className="w-full text-brand-slate dark:text-slate-300 leading-relaxed bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-slate-200/50 dark:border-slate-700 p-6 font-serif text-lg min-h-[350px] resize-y focus:outline-none focus:ring-2 focus:ring-brand-teal transition-all"
+                />
+              </div>
+
+              {/* Action Buttons */}
+              <div className="pt-6 border-t border-slate-100 dark:border-slate-800 flex gap-4">
+                <button 
+                  className="px-6 py-2.5 bg-brand-plum hover:bg-brand-plum/90 text-white font-medium rounded-lg shadow-sm transition-colors flex items-center gap-2"
+                  onClick={() => handleSaveNotes(true)}
+                >
+                  <FileText className="w-4 h-4" />
+                  Convert to PDF & Save to Appointment
+                </button>
+                <button 
+                  className="px-6 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:bg-brand-slate/5 text-brand-slate dark:text-slate-300 font-medium rounded-lg shadow-sm transition-colors"
+                  onClick={() => handleSaveNotes(false)}
+                >
+                  Save Draft
+                </button>
               </div>
             </div>
           </div>

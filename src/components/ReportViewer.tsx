@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
-import { FileText, Download, ExternalLink } from 'lucide-react';
+import { FileText, Download, ExternalLink, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { getGeneratedPdf } from '@/lib/pdf-store';
 
 interface ReportPdf {
   title: string;
@@ -50,18 +52,25 @@ export function getReportForAppointment(appointmentId: string): ReportPdf | null
 
 interface ReportViewerProps {
   appointmentId: string;
+  pdfVersion?: number; // bumps when a new PDF is generated for this appointment
 }
 
-export default function ReportViewer({ appointmentId }: ReportViewerProps) {
+export default function ReportViewer({ appointmentId, pdfVersion }: ReportViewerProps) {
   const report = getReportForAppointment(appointmentId);
-  const [key, setKey] = useState(0);
+  const [isOpen, setIsOpen] = useState(false);
 
-  // Force iframe refresh when switching appointments
+  // Close the popup if it was open when switching appointments
   useEffect(() => {
-    setKey(prev => prev + 1);
+    setIsOpen(false);
   }, [appointmentId]);
 
-  if (!report) {
+  // Check if there's a doctor-generated PDF for this appointment
+  const generatedUrl = getGeneratedPdf(appointmentId);
+  // Use generated PDF if available, otherwise fall back to the static mock
+  const activePdfUrl = generatedUrl || report?.pdfUrl || '';
+  const hasGenerated = !!generatedUrl;
+
+  if (!report && !hasGenerated) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-slate-400 dark:text-slate-500">
         <FileText className="w-12 h-12 mb-3 opacity-30" />
@@ -71,56 +80,109 @@ export default function ReportViewer({ appointmentId }: ReportViewerProps) {
     );
   }
 
+  const title = hasGenerated 
+    ? `${report?.title || 'Clinical Notes'} (Generated)` 
+    : (report?.title || 'Report');
+  const subtitle = report 
+    ? `${report.provider} • ${new Date(report.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}` 
+    : '';
+
+  // Use pdfVersion as a key suffix to force iframe reload
+  const iframeKey = `${appointmentId}-${pdfVersion ?? 0}`;
+
   return (
-    <div className="flex flex-col h-full">
-      {/* PDF Toolbar */}
-      <div className="flex items-center justify-between px-4 py-2.5 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 shrink-0">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="p-1.5 bg-red-50 dark:bg-red-900/20 rounded-md shrink-0">
-            <FileText className="w-4 h-4 text-red-500" />
-          </div>
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-brand-plum dark:text-brand-lime truncate">
-              {report.title}
-            </p>
-            <p className="text-[11px] text-slate-500 dark:text-slate-400">
-              {report.provider} • {new Date(report.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
-            </p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="h-8 text-xs gap-1.5 border-slate-200 dark:border-slate-700"
-            onClick={() => window.open(report.pdfUrl, '_blank')}
+    <div className="flex flex-col h-full items-center justify-center p-8 bg-slate-50 dark:bg-slate-900/50 relative">
+      {/* Document Cards */}
+      <div className="w-full max-w-lg mx-auto space-y-4">
+        {/* Generated notes PDF card (if exists) */}
+        {hasGenerated && (
+          <div 
+            className="group cursor-pointer"
+            onClick={() => setIsOpen(true)}
           >
-            <ExternalLink className="w-3 h-3" />
-            Open
-          </Button>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="h-8 text-xs gap-1.5 border-slate-200 dark:border-slate-700"
-            asChild
+            <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border-2 border-brand-teal/30 dark:border-brand-teal/40 shadow-sm hover:shadow-lg transition-all duration-300 transform group-hover:-translate-y-1 group-hover:border-brand-teal">
+              <div className="flex items-center gap-5">
+                <div className="w-14 h-14 bg-brand-teal/10 rounded-xl flex items-center justify-center text-brand-teal shrink-0 group-hover:scale-110 transition-transform duration-300">
+                  <FileText className="w-7 h-7" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg font-bold text-brand-plum dark:text-brand-lime truncate">Clinical Notes Report</h3>
+                    <span className="text-[10px] font-bold uppercase tracking-wider bg-brand-teal/10 text-brand-teal px-2 py-0.5 rounded-full shrink-0">Generated</span>
+                  </div>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">{subtitle}</p>
+                </div>
+                <Button size="sm" className="bg-brand-teal hover:bg-brand-teal/90 text-white gap-1.5 rounded-lg shrink-0">
+                  <Eye className="w-3.5 h-3.5" />
+                  View
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Original/static report card */}
+        {report && (
+          <div 
+            className="group cursor-pointer"
+            onClick={() => {
+              if (!hasGenerated) setIsOpen(true);
+              else window.open(report.pdfUrl, '_blank');
+            }}
           >
-            <a href={report.pdfUrl} download>
-              <Download className="w-3 h-3" />
-              Download
-            </a>
-          </Button>
-        </div>
+            <div className={`bg-white dark:bg-slate-800 rounded-2xl p-6 border shadow-sm hover:shadow-lg transition-all duration-300 transform group-hover:-translate-y-1 ${hasGenerated ? 'border-slate-200 dark:border-slate-700 group-hover:border-slate-300 dark:group-hover:border-slate-600' : 'border-slate-200 dark:border-slate-700 group-hover:border-brand-teal/50'}`}>
+              <div className="flex items-center gap-5">
+                <div className={`w-14 h-14 rounded-xl flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform duration-300 ${hasGenerated ? 'bg-slate-100 dark:bg-slate-700 text-slate-400' : 'bg-brand-teal/10 text-brand-teal'}`}>
+                  <FileText className="w-7 h-7" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h3 className={`text-lg font-bold truncate ${hasGenerated ? 'text-slate-600 dark:text-slate-300' : 'text-brand-plum dark:text-brand-lime'}`}>{report.title}</h3>
+                    <span className="text-[10px] font-bold uppercase tracking-wider bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400 px-2 py-0.5 rounded-full shrink-0">Original</span>
+                  </div>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">{subtitle}</p>
+                </div>
+                <Button size="sm" variant={hasGenerated ? 'outline' : 'default'} className={hasGenerated ? 'gap-1.5 rounded-lg shrink-0' : 'bg-brand-teal hover:bg-brand-teal/90 text-white gap-1.5 rounded-lg shrink-0'}>
+                  <Eye className="w-3.5 h-3.5" />
+                  {hasGenerated ? 'Open' : 'View'}
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <p className="text-[10px] text-center text-slate-400 dark:text-slate-500 uppercase tracking-widest font-bold pt-2">Encrypted Clinical Records</p>
       </div>
 
-      {/* PDF Iframe */}
-      <div className="flex-1 bg-slate-200 dark:bg-slate-950 relative">
-        <iframe
-          key={key}
-          src={report.pdfUrl}
-          className="w-full h-full border-0 absolute inset-0"
-          title={report.title}
-        />
-      </div>
+      {/* PDF Viewer Dialog */}
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <DialogContent className="max-w-5xl h-[90vh] flex flex-col p-0 overflow-hidden bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800">
+          <DialogHeader className="p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 shrink-0">
+            <DialogTitle className="flex justify-between items-center pr-6">
+              <span className="flex items-center gap-2 text-brand-plum dark:text-brand-lime">
+                <FileText className="w-5 h-5 text-brand-teal" />
+                {title}
+              </span>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" className="gap-2 h-8 text-xs border-slate-200 dark:border-slate-700" onClick={() => window.open(activePdfUrl, '_blank')}>
+                   <ExternalLink className="w-3.5 h-3.5" /> Open in New Tab
+                </Button>
+                <Button size="sm" variant="outline" className="gap-2 h-8 text-xs border-slate-200 dark:border-slate-700" asChild>
+                   <a href={activePdfUrl} download><Download className="w-3.5 h-3.5" /> Download PDF</a>
+                </Button>
+              </div>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 bg-slate-200 dark:bg-slate-950 relative">
+            <iframe
+              key={iframeKey}
+              src={`${activePdfUrl}#toolbar=0`}
+              className="w-full h-full border-0 absolute inset-0 bg-white"
+              title={title}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

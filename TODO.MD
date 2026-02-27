@@ -1,3 +1,3 @@
 -recording fix -> when i only hit stop the counter goes on
 -color palette fix record and other important bottoms shoud be red
--
+-fix draft part -> more format

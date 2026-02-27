@@ -82,3 +82,10 @@ export const getAppointmentsByPatient = (patientId: string) => {
 export const getPatientById = (patientId: string) => {
   return patients.find(p => p.id === patientId);
 };
+
+export const updateAppointmentReport = (id: string, newReport: string) => {
+  const idx = appointments.findIndex(a => a.id === id);
+  if (idx !== -1) {
+    appointments[idx].report = newReport;
+  }
+};
