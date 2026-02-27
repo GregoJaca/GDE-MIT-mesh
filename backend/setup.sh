@@ -8,9 +8,10 @@ if ! command -v uv &> /dev/null; then
 fi
 
 # Hermetic environment setup
-uv venv --python 3.14
+uv venv --python 3.12 --seed
 source .venv/bin/activate
 uv sync --frozen --no-dev
+uv run python -m spacy download en_core_web_sm
 
 echo "Runtime environment locked and synchronized."
 printf "\nUsage:\n  uv run python main.py\n"
