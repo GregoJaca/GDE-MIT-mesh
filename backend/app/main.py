@@ -1,23 +1,17 @@
 import logging
 from contextlib import asynccontextmanager
-<<<<<<< Updated upstream:backend/app/main.py
-from fastapi import FastAPI, HTTPException
-from app.core.config import Config
-from app.core.llm_client import LLMClient
-from app.models.api_models import GenerationRequest, FinalReportResponse
-from app.services.pipeline import ZeroHallucinationPipeline
-=======
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from openai import OpenAI
 
-from config import Config
-from api_models import GenerationRequest, FinalReportResponse
-from pipeline import ZeroHallucinationPipeline
+from app.core.config import Config
+from app.core.llm_client import LLMClient
+from app.models.api_models import GenerationRequest, FinalReportResponse
+from app.services.pipeline import ZeroHallucinationPipeline
+
 from database import get_db, Base, engine
 from models import Patient, Doctor, EventCatalog, EHRDocument, ERecept, EBeutalo
->>>>>>> Stashed changes:backend/main.py
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("api")
