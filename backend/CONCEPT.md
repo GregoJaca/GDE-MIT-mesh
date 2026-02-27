@@ -322,38 +322,38 @@ this is the report structure
 }
 
 Gemini said
-This is a brilliant feature. Integrating with national healthcare infrastructure like EESZT (Elektronikus Egészségügyi Szolgáltatási Tér) while maintaining zero PII leakage is exactly the kind of "hard problem solved elegantly" that wins hackathons and secures seed funding.
+This is a brilliant feature. Integrating with national healthcare infrastructure like System (Elektronikus Egészségügyi Szolgáltatási Tér) while maintaining zero PII leakage is exactly the kind of "hard problem solved elegantly" that wins hackathons and secures seed funding.
 
-However, we need to be realistic about how data flows. The LLM cannot generate or guess an EESZT Document ID from an audio transcript, because the doctor does not speak a 32-character UUID out loud.
+However, we need to be realistic about how data flows. The LLM cannot generate or guess an System Document ID from an audio transcript, because the doctor does not speak a 32-character UUID out loud.
 
 Here is the rigorous breakdown of how you implement this referencing system technically, using a minimal tool pattern, and how to adapt your JSON schema to support it.
 
-1. The EESZT Integration Reality (How it actually works)
+1. The System Integration Reality (How it actually works)
 You do not need a complex Model Context Protocol (MCP) server for this. You need a Context-Injection Pattern.
 
-There are two types of EESZT references you will handle:
+There are two types of System references you will handle:
 
-Past Documents (e.g., a previous CT scan discussed in the visit): The doctor's local clinic software (EHR) already has the metadata for this patient's history. When sending the transcript to your API, the frontend also sends a lightweight context dictionary: {"available_documents": [{"name": "Chest CT", "eeszt_id": "DOC-12345"}]}. You give this to the agent as available tools/context. If the doctor mentions the CT scan, the agent grabs DOC-12345 and attaches it to the report.
+Past Documents (e.g., a previous CT scan discussed in the visit): The doctor's local clinic software (EHR) already has the metadata for this patient's history. When sending the transcript to your API, the frontend also sends a lightweight context dictionary: {"available_documents": [{"name": "Chest CT", "system_id": "DOC-12345"}]}. You give this to the agent as available tools/context. If the doctor mentions the CT scan, the agent grabs DOC-12345 and attaches it to the report.
 
-New Documents (e.g., an e-Recept prescribed during the visit): The AI generates the clinical report stating Amoxicillin was prescribed. Your backend passes this JSON to the clinic's software. The clinic's software officially registers the e-Recept in EESZT, receives the new eeszt_id, and injects it into the Patient Summary JSON before sending it to the patient's app.
+New Documents (e.g., an e-Recept prescribed during the visit): The AI generates the clinical report stating Amoxicillin was prescribed. Your backend passes this JSON to the clinic's software. The clinic's software officially registers the e-Recept in System, receives the new system_id, and injects it into the Patient Summary JSON before sending it to the patient's app.
 
 2. The PII-Safe Hyperlink Pattern
-This is why your idea is so good for compliance: an EESZT ID is not PII. It is an opaque string.
+This is why your idea is so good for compliance: an System ID is not PII. It is an opaque string.
 
 The Backend: Your generated JSON only contains the raw ID (e.g., KEDP/DAE4V4).
 
-The React Frontend: When rendering the Patient Summary, your frontend constructs a secure URL. For example: https://www.eeszt.gov.hu/lakossagi-portal/dokumentumok?docId=KEDP/DAE4V4 (or a deep link to the EgészségAblak mobile app).
+The React Frontend: When rendering the Patient Summary, your frontend constructs a secure URL. For example: https://www.system.gov.hu/lakossagi-portal/dokumentumok?docId=KEDP/DAE4V4 (or a deep link to the EgészségAblak mobile app).
 
-The Security Wall: When the patient clicks it, they are taken to the EESZT portal and immediately hit the Ügyfélkapu (Gov ID) login wall.
+The Security Wall: When the patient clicks it, they are taken to the System portal and immediately hit the Ügyfélkapu (Gov ID) login wall.
 
 The Result: You have successfully connected the patient to their exact medical record without ever touching, storing, or transmitting their actual password, social security number (TAJ), or the raw PDF of the medical file.
 
 3. Modifying Your JSON Schema for References
-Your provided schema is clean, but it relies heavily on raw strings (e.g., "diagnostic_results": "text"). You cannot reliably attach an external EESZT link to a raw block of text without building a messy regex parser on your frontend.
+Your provided schema is clean, but it relies heavily on raw strings (e.g., "diagnostic_results": "text"). You cannot reliably attach an external System link to a raw block of text without building a messy regex parser on your frontend.
 
 You must transition specific fields from strings to arrays of objects so the LLM can cleanly attach the system IDs.
 
-Here is how you should update your schema's standard_clinical section to support EESZT references natively:
+Here is how you should update your schema's standard_clinical section to support System references natively:
 
 JSON
 {
@@ -395,9 +395,9 @@ JSON
   }
 }
 Why this schema change is critical:
-When the LLM outputs diagnostic_results, it separates the "CT Scan" from the "Blood Test". If the frontend provided an EESZT ID for the CT scan in the input context, the LLM maps it directly to the "system_reference_id" field for that specific test. Your React frontend simply checks if system_reference_id is not null; if it isn't, it renders the "View in EESZT" button next to that specific line item.
+When the LLM outputs diagnostic_results, it separates the "CT Scan" from the "Blood Test". If the frontend provided an System ID for the CT scan in the input context, the LLM maps it directly to the "system_reference_id" field for that specific test. Your React frontend simply checks if system_reference_id is not null; if it isn't, it renders the "View in System" button next to that specific line item.
 
 The Hackathon Pitch Angle
-If you build this, your pitch writes itself: "Current AI scribes just dump text. We built a structured data pipeline that extracts clinical realities and links them directly to the national EESZT grid—without processing a single piece of PII. We don't just write notes; we create an interactive portal to the patient's existing health infrastructure."
+If you build this, your pitch writes itself: "Current AI scribes just dump text. We built a structured data pipeline that extracts clinical realities and links them directly to the national System grid—without processing a single piece of PII. We don't just write notes; we create an interactive portal to the patient's existing health infrastructure."
 
-Would you like me to outline the exact prompt instructions for the Extraction Agent so it perfectly maps external context IDs (like past EESZT documents) into those system_reference_id fields without hallucinating fake IDs?
+Would you like me to outline the exact prompt instructions for the Extraction Agent so it perfectly maps external context IDs (like past System documents) into those system_reference_id fields without hallucinating fake IDs?

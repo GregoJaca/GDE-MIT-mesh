@@ -2,8 +2,9 @@ import os
 from dotenv import load_dotenv
 from typing import Literal
 
-# Load from superior directory if run from inside backend/
-load_dotenv(dotenv_path="../.env")
+# Load from superior directory dynamically
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+load_dotenv(os.path.join(BASE_DIR, '../.env'))
 
 class Config:
     KEY = os.getenv("OPENAI_API_KEY")

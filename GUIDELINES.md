@@ -11,3 +11,5 @@
 - never include any emojis in communications or documentation
 - always provide compact, high-quality, rich technical information only
 - prioritize architectural analysis and precision over conversational tone
+- completely isolate all LLM prompts into a dedicated `prompts.py` file to maintain abstraction and readability.
+- never hardcode specific upstream system names. use generic internal abstractions (like `system_doc_id` or `external_reference`) to ensure reusability and decouple business logic.

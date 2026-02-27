@@ -1,6 +1,6 @@
 import pytest
 from httpx import AsyncClient, ASGITransport
-from main import app
+from app.main import app
 
 @pytest.mark.asyncio
 async def test_generate_consultation_schema_success():
@@ -22,8 +22,8 @@ async def test_generate_consultation_schema_success():
         assert res.status_code == 422 # Pydantic Validation Error
 
 @pytest.mark.asyncio
-async def test_mock_pipeline_run():
-    """Since testing OpenAI endpoints requires keys, we mock the pipeline here or just test the API shape."""
+async def test_schema_validation():
+    """Tests proper 422 HTTP validation structure."""
     # To fully test, we'd mock `state.client`, but for MVPs simply asserting the endpoint exists and validates 
     # the schema is a strong 80/20 test.
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:

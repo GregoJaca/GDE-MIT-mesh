@@ -1,6 +1,6 @@
 # Zero-Hallucination Clinical Extraction API
 
-A production-grade, Google-style monolithic API service for structurally parsing medical transcripts into EESZT-compliant clinical records and patient-native summaries. Utilizing strict, deterministic pipelines for zero LLM confabulation.
+A production-grade, Google-style monolithic API service for structurally parsing medical transcripts into database-compliant clinical records and patient-native summaries. Utilizing strict, deterministic pipelines for zero LLM confabulation.
 
 ## 1. System Architecture & Data Flow
 
@@ -8,88 +8,74 @@ The backend employs a strict, linear progression to mathematically guarantee tha
 
 ```mermaid
 sequenceDiagram
-    participant F as Frontend (UI/Device)
-    participant E as EESZT API
-    participant B as Backend (FastAPI)
-    participant P as Presidio (Local Scrub)
-    participant L as Azure OpenAI (EU)
-
-    F->>E: Authenticate & Fetch Opaque IDs (No EHR Data)
-    E-->>F: Returns [{"type": "lab", "id": "DOC-XYZ"}]
-    Note over F: Doctor records consultation audio
-    F->>F: Whisper (Speech-to-Text) -> Transcript
-    F->>B: POST /generate-consultation<br>(Metadata + Opaque IDs + Transcript)
+    participant F as Frontend (Native Speech)
+    participant B as Backend API (Python/Gunicorn)
+    participant LLM as Azure OpenAI (Model Router)
+    participant E as DB Query Service
     
-    rect rgb(20, 20, 30)
-    Note over B: Deterministic Zone
-    B->>P: Scrub PII (Names, Dates, Locations)
-    P-->>B: Scrubbed Transcript + Token Map [PERSON_1]
-    B->>L: CoVe Prompt + Scrubbed Transcript + Opaque IDs
-    L-->>B: Structured JSON (with contextual_quote)
-    B->>B: Deterministic Guardrail:<br>transcript.find(contextual_quote)
-    B->>L: Translate Validated JSON to Patient Summary
-    L-->>B: Layman Summary JSON
-    B->>P: Hydrate JSON (Swap [PERSON_1] -> "Jane Doe")
+    F->>B: POST /generate-consultation (Audio Transcript + Context)
+    
+    rect rgb(240, 240, 240)
+        Note over B: 1. Presidio PII Scrubbing (O(N))
+        Note over B: 2. Structured Extraction (Azure OpenAI)
+        Note over B: 3. Deterministic Quote Validation (Guardrail)
     end
+
+    B->>LLM: Extraction Request (Scrubbed Payload)
+    LLM-->>B: Structured JSON response
     
-    B-->>F: FinalReportResponse (Clinical + Summary + Metadata)
-    F->>E: POST Structured Clinical JSON -> EHR
-    Note over F: UI renders laymen summary deep-linked<br>to EESZT via "DOC-XYZ"
+    Note over B: 4. Metadata Hydration (Swap tokens back to PII)
+    
+    B-->>F: Final JSON Response
+    Note over F: UI renders laymen summary deep-linked<br/>to DB Query via "DOC-XYZ"
 ```
 
-### Deterministic Sub-Systems
+###  Deployment Security & Precision Architecture
 
-1.  **PII Mitigation**: An Edge-layer Microsoft `Presidio` instance tokenizes local data (GDPR Art 9 compliance) before LLM inference.
-2.  **Metadata Bypass & Opaque Pointers**: Strict HTTP ingestion parameters skip the AI reasoning loop directly. Historical EESZT documents are passed as "opaque pointers" (IDs only) in the system prompt context. No real PII/PHI EHR data enters the LLM context pane. 
-3.  **Verifiable Grounding via CoVe**: `gpt-5.2` structured outputs are linked to `Pydantic` Chain-of-Verification schemas, forcing logical deduction explicitly *before* final extraction.
-4.  **Deterministic Guardrails**: Output JSONs are mathematically validated. Any data point where `transcript.find(contextual_quote) == -1` is structurally removed to guarantee zero hallucination.
+1.  **PII Scrubbing (Local Execution)**: We utilize Microsoft Presidio to locally redact all PERSON, LOCATION, and DATE_TIME entities on the backend before the payload leaves our infrastructure.
+2.  **Metadata Bypass & Opaque Pointers**: Strict HTTP ingestion parameters skip the AI reasoning loop directly. Historical documentation are passed as "opaque pointers" (IDs only) in the system prompt context. No real PII/PHI EHR data enters the LLM context pane. 
+3.  **Deterministic Literal Matching**: The "Zero-Hallucination" guardrail verifies that every clinical finding contains a literal 1-to-1 contextual quote proven to exist in the scrubbed transcript. If the LLM generates a finding not present in the record, the backend strips it deterministically.
 
 ---
 
-## 2. API Contract & Schemas
+#### How the DB Query Integration Works (The Opaque Pointer Pattern)
 
-The backend exposes a single, highly optimized endpoint handling the linear consultation pipeline.
+The core challenge is linking a spoken phrase (like *"my lab results from last Tuesday"*) to an actual medical database entry *without* downloading the patient's entire medical history into the API pipeline (which violates GDPR minimize data principles).
 
-### `POST /api/v1/generate-consultation`
+1.  **Frontend Context Gathering**: When the doctor opens the patient's record, the Frontend UI makes a secure API call to a DB Query service to fetch a lightweight index of recent documents. It retrieves **only** the document ID, the type, and the date. No actual medical contents.
+2.  **API Ingestion**: The Backend receives the JSON index during the request.
+3.  **Prompt Contextualization**: The LLM is given the index (the "System Context"). 
+4.  **Semantic Mapping**: In the transcript, when the doctor says *"Your cholesterol is high from your lab last Tuesday"*, the LLM realizes *"Tue, Feb 20"* matches a document in the context, and maps it.
+5.  **Opaque Pointer Output**: The LLM outputs `system_reference_id: "DOC-99281-XYZ"`.
+6.  **Frontend Hydration**: The Backend returns the JSON. The Frontend UI sees `system_reference_id: "DOC-99281-XYZ"`, and generates a dynamic hyperlink in the final clinical report, allowing the doctor to click it and securely open the actual lab document directly from a secure DB Query endpoint on their device.
 
-#### How the EESZT Integration Works (The Opaque Pointer Pattern)
+---
 
-The core challenge is linking a spoken phrase (like *"my lab results from last Tuesday"*) to an actual Hungarian National eHealth (EESZT) database entry *without* downloading the patient's entire medical history into the API pipeline (which violates GDPR minimize data principles).
+###  API Documentation & Examples
 
-**The Solution:**
-1.  **Frontend Context Gathering**: When the doctor opens the patient's record, the Frontend UI makes a secure API call to EESZT to fetch a lightweight index of recent documents. It retrieves **only** the document ID, the type, and the date. No actual medical contents.
-2.  **The API Payload**: The Frontend sends this lightweight index to our backend as `context_documents` within the `metadata` object.
-3.  **Semantic Mapping via LLM**: The Backend injects this lightweight index directly into the LLM's system prompt (e.g., *"Available Documents: ID: DOC-99281-XYZ, Type: laboratory_result, Date: 2026-02-20"*).
-4.  **The Inference Link**: When the LLM processes the transcript ("Patient complains her blood pressure is higher than her latest lab results indicated"), its native semantic understanding connects "latest lab results" to the "laboratory_result" type in the prompt context. 
-5.  **The Output**: The LLM outputs `DOC-99281-XYZ` in the structured JSON field `system_reference_id` alongside the finding.
-6.  **Frontend Hydration**: The Backend returns the JSON. The Frontend UI sees `system_reference_id: "DOC-99281-XYZ"`, and generates a dynamic hyperlink in the final clinical report, allowing the doctor to click it and securely open the actual lab document directly from EESZT on their device.
+#### Endpoint: `POST /api/v1/generate-consultation`
 
-
-#### Request Payload Example
+**Request Body Schema:**
 ```json
 {
   "metadata": {
-    "patient_id": "P-10101",
-    "patient_name": "Jane Doe",
-    "patient_taj": "123-456-789",
-    "doctor_id": "D-4099",
-    "doctor_name": "Dr. Smith",
-    "doctor_seal": "S-14399",
+    "patient_id": "P-88421",
+    "patient_taj": "111-222-333",
     "encounter_date": "2026-02-27T10:00:00Z",
     "context_documents": [
       {
         "type": "laboratory_result",
-        "eeszt_doc_id": "DOC-99281-XYZ",
+        "system_doc_id": "DOC-99281-XYZ",
         "date": "2026-02-20"
       },
       {
-         "type": "discharge_summary",
-         "eeszt_doc_id": "DOC-55555-ABC",
-         "date": "2025-11-01"
+         "type": "surgical_note",
+         "system_doc_id": "DOC-55555-ABC",
+         "date": "2025-12-14"
       }
     ]
   },
-  "transcript": "Okay Jane, I see from your latest lab results last week that your cholesterol is slightly elevated. Otherwise, you're recovering well from your hospital stay in November. Let's schedule a follow-up appointment for next month to re-check."
+  "transcript": "Okay, I see from your laboratory result that your cholesterol is slightly elevated..."
 }
 ```
 
@@ -117,14 +103,13 @@ The core challenge is linking a spoken phrase (like *"my lab results from last T
         "system_reference_id": "DOC-99281-XYZ" 
       }
     ],
-    "medications": [
+    "actionables": [
       {
          "action_type": "FOLLOW_UP_APPT",
-         "description": "Schedule a follow-up to check cholesterol",
-         "timeframe": "Next month",
-         "system_reference_id": null,
-         "exact_quote": "follow-up appointment for next month",
-         "contextual_quote": "Let's schedule a follow-up appointment for next month to re-check."
+         "description": "Schedule a cardiology follow-up with Dr. Sarah Miller.",
+         "timeframe": "Next Thursday",
+         "system_reference_id": "SPEC-01",
+         "exact_quote": "Dr. Sarah Miller"
       }
     ]
   },
