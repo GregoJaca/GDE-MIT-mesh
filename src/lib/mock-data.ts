@@ -5,9 +5,20 @@ export interface Patient {
   gender: string;
 }
 
+export interface MedicalCase {
+  id: string;
+  patientId: string;
+  title: string;
+  description: string;
+  status: 'Active' | 'Closed';
+  createdDate: string;
+  icon: string; // emoji for visual flair
+}
+
 export interface Appointment {
   id: string;
   patientId: string;
+  caseId: string;
   date: string;
   topic: string;
   doctorId: string;
@@ -21,11 +32,54 @@ export const patients: Patient[] = [
   { id: 'PT-1003', name: 'Emma Watson', age: 28, gender: 'Female' },
 ];
 
+export const medicalCases: MedicalCase[] = [
+  // Sarah Jenkins (PT-1001)
+  {
+    id: 'CASE-001',
+    patientId: 'PT-1001',
+    title: 'Annual Checkup & Labs',
+    description: 'Routine annual physical and follow-up lab review.',
+    status: 'Closed',
+    createdDate: '2023-10-14',
+    icon: '🩺',
+  },
+  {
+    id: 'CASE-002',
+    patientId: 'PT-1001',
+    title: 'Skin Lesion Evaluation',
+    description: 'Evaluation of pigmented lesion on right forearm.',
+    status: 'Active',
+    createdDate: '2024-02-28',
+    icon: '🔬',
+  },
+  // Michael Chen (PT-1002)
+  {
+    id: 'CASE-003',
+    patientId: 'PT-1002',
+    title: 'Right Knee Injury',
+    description: 'Skiing accident — suspected ACL tear or meniscus injury.',
+    status: 'Active',
+    createdDate: '2024-01-15',
+    icon: '🦴',
+  },
+  // Emma Watson (PT-1003)
+  {
+    id: 'CASE-004',
+    patientId: 'PT-1003',
+    title: 'Chronic Migraine Management',
+    description: 'Ongoing prophylactic treatment for chronic migraines.',
+    status: 'Active',
+    createdDate: '2024-02-10',
+    icon: '🧠',
+  },
+];
+
 export const appointments: Appointment[] = [
   // Sarah Jenkins (PT-1001)
   {
     id: 'APP-001',
     patientId: 'PT-1001',
+    caseId: 'CASE-001',
     date: '2023-10-14',
     topic: 'Annual Physical',
     doctorId: 'DR-001',
@@ -35,6 +89,7 @@ export const appointments: Appointment[] = [
   {
     id: 'APP-002',
     patientId: 'PT-1001',
+    caseId: 'CASE-001',
     date: '2023-11-05',
     topic: 'Lab Results Review',
     doctorId: 'DR-001',
@@ -44,6 +99,7 @@ export const appointments: Appointment[] = [
   {
     id: 'APP-003',
     patientId: 'PT-1001',
+    caseId: 'CASE-002',
     date: '2024-02-28',
     topic: 'Dermatology Consult',
     doctorId: 'DR-002',
@@ -55,6 +111,7 @@ export const appointments: Appointment[] = [
   {
     id: 'APP-004',
     patientId: 'PT-1002',
+    caseId: 'CASE-003',
     date: '2024-01-15',
     topic: 'Orthopedic Evaluation',
     doctorId: 'DR-003',
@@ -66,6 +123,7 @@ export const appointments: Appointment[] = [
   {
     id: 'APP-005',
     patientId: 'PT-1003',
+    caseId: 'CASE-004',
     date: '2024-02-10',
     topic: 'Migraine Follow-up',
     doctorId: 'DR-004',
@@ -77,6 +135,18 @@ export const appointments: Appointment[] = [
 // Helper functions for mock backend
 export const getAppointmentsByPatient = (patientId: string) => {
   return appointments.filter(a => a.patientId === patientId).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+};
+
+export const getCasesByPatient = (patientId: string) => {
+  return medicalCases.filter(c => c.patientId === patientId).sort((a, b) => new Date(b.createdDate).getTime() - new Date(a.createdDate).getTime());
+};
+
+export const getAppointmentsByCase = (caseId: string) => {
+  return appointments.filter(a => a.caseId === caseId).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+};
+
+export const getCaseById = (caseId: string) => {
+  return medicalCases.find(c => c.id === caseId);
 };
 
 export const getPatientById = (patientId: string) => {

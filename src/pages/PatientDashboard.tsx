@@ -13,7 +13,7 @@ import ReportViewer from '@/components/ReportViewer';
 type TabId = 'report' | 'ai';
 
 export default function PatientDashboard() {
-  const { selectedAppointment } = useAppointmentContext();
+  const { selectedAppointment, selectedCase } = useAppointmentContext();
   const [activeTab, setActiveTab] = useState<TabId>('report');
   
   // Simulated files state for the AI to still have context, since files uploaded by doctor would be linked to the appointment
@@ -39,6 +39,14 @@ export default function PatientDashboard() {
       {/* Appointment Header */}
       <div className="flex items-center justify-between bg-white dark:bg-slate-900 p-4 rounded-xl shadow-sm border border-slate-200/60 dark:border-slate-800 shrink-0 transition-colors">
         <div>
+          <div className="flex items-center gap-3 mb-1">
+            {selectedCase && (
+              <div className="flex items-center gap-2 bg-gradient-to-r from-brand-plum/5 to-brand-teal/5 dark:from-brand-plum/10 dark:to-brand-teal/10 text-brand-plum dark:text-brand-lime px-2.5 py-1 rounded-lg text-xs font-semibold border border-brand-plum/15 dark:border-brand-lime/20">
+                <span className="text-sm">{selectedCase.icon}</span>
+                {selectedCase.title}
+              </div>
+            )}
+          </div>
           <h1 className="text-xl font-bold text-brand-plum dark:text-brand-lime flex items-center gap-3">
             {selectedAppointment.topic}
             <span className="text-xs font-semibold px-2 py-1 bg-brand-lime/20 text-brand-teal rounded-full border border-brand-lime/50">

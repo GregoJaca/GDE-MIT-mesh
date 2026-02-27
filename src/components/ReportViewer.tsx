@@ -3,6 +3,7 @@ import { FileText, Download, ExternalLink, Eye, FileCode } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { getGeneratedPdf } from '@/lib/pdf-store';
+import { getGeneratedMd } from '@/lib/md-store';
 import ReactMarkdown from 'react-markdown';
 import { appointments } from '@/lib/mock-data';
 import { APP_CONFIG } from '@/config/constants';
@@ -55,10 +56,11 @@ export function getReportForAppointment(appointmentId: string): ReportPdf | null
 
 interface ReportViewerProps {
   appointmentId: string;
-  pdfVersion?: number; // bumps when a new PDF is generated for this appointment
+  pdfVersion?: number;
+  mdVersion?: number;
 }
 
-export default function ReportViewer({ appointmentId, pdfVersion }: ReportViewerProps) {
+export default function ReportViewer({ appointmentId, pdfVersion, mdVersion }: ReportViewerProps) {
   const report = getReportForAppointment(appointmentId);
   const appointmentDoc = appointments.find(a => a.id === appointmentId);
   const [isOpen, setIsOpen] = useState(false);
@@ -75,7 +77,13 @@ export default function ReportViewer({ appointmentId, pdfVersion }: ReportViewer
   const activePdfUrl = generatedUrl || report?.pdfUrl || '';
   const hasGenerated = !!generatedUrl;
 
-  if (!report && !hasGenerated) {
+  // Check for generated markdown report
+  const generatedMd = getGeneratedMd(appointmentId);
+  const hasGeneratedMd = !!generatedMd;
+  // Use mdVersion to force re-render
+  void mdVersion;
+
+  if (!report && !hasGenerated && !hasGeneratedMd) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-slate-400 dark:text-slate-500">
         <FileText className="w-12 h-12 mb-3 opacity-30" />
@@ -118,6 +126,33 @@ export default function ReportViewer({ appointmentId, pdfVersion }: ReportViewer
                   <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">{subtitle}</p>
                 </div>
                 <Button size="sm" className="bg-brand-teal hover:bg-brand-teal/90 text-white gap-1.5 rounded-lg shrink-0">
+                  <Eye className="w-3.5 h-3.5" />
+                  View
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Generated Markdown card (if exists) */}
+        {hasGeneratedMd && (
+          <div 
+            className="group cursor-pointer"
+            onClick={() => { setViewMode('md'); setIsOpen(true); }}
+          >
+            <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border-2 border-emerald-300/40 dark:border-emerald-600/40 shadow-sm hover:shadow-lg transition-all duration-300 transform group-hover:-translate-y-1 group-hover:border-emerald-400">
+              <div className="flex items-center gap-5">
+                <div className="w-14 h-14 bg-emerald-50 dark:bg-emerald-950/30 rounded-xl flex items-center justify-center text-emerald-500 shrink-0 group-hover:scale-110 transition-transform duration-300">
+                  <FileCode className="w-7 h-7" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-lg font-bold text-brand-plum dark:text-brand-lime truncate">Markdown Report</h3>
+                    <span className="text-[10px] font-bold uppercase tracking-wider bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-full shrink-0">Generated</span>
+                  </div>
+                  <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">{subtitle}</p>
+                </div>
+                <Button size="sm" className="bg-emerald-500 hover:bg-emerald-600 text-white gap-1.5 rounded-lg shrink-0">
                   <Eye className="w-3.5 h-3.5" />
                   View
                 </Button>
@@ -197,7 +232,7 @@ export default function ReportViewer({ appointmentId, pdfVersion }: ReportViewer
                   </>
                 ) : (
                   <Button size="sm" variant="outline" className="gap-2 h-8 text-xs border-slate-200 dark:border-slate-700" onClick={() => {
-                    const blob = new Blob([appointmentDoc?.report || ''], { type: 'text/markdown' });
+                    const blob = new Blob([generatedMd || appointmentDoc?.report || ''], { type: 'text/markdown' });
                     const url = URL.createObjectURL(blob);
                     const a = document.createElement('a');
                     a.href = url;
@@ -223,7 +258,7 @@ export default function ReportViewer({ appointmentId, pdfVersion }: ReportViewer
                 <div className="max-w-3xl mx-auto bg-white dark:bg-slate-950 p-8 sm:p-10 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800">
                   <article className="prose prose-slate dark:prose-invert lg:prose-lg max-w-none prose-headings:text-brand-plum dark:prose-headings:text-brand-lime prose-a:text-brand-teal">
                     <ReactMarkdown>
-                      {appointmentDoc?.report || '*No markdown content available.*'}
+                      {generatedMd || appointmentDoc?.report || '*No markdown content available.*'}
                     </ReactMarkdown>
                   </article>
                 </div>
