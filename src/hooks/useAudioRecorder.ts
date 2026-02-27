@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 
 export interface Recording {
   id: string;
@@ -17,7 +17,12 @@ export function getRecordingsByAppointment(appointmentId: string): Recording[] {
 }
 
 export function addRecording(recording: Recording) {
-  recordingsStore.push(recording);
+  const index = recordingsStore.findIndex(r => r.appointmentId === recording.appointmentId);
+  if (index !== -1) {
+    recordingsStore[index] = recording;
+  } else {
+    recordingsStore.push(recording);
+  }
 }
 
 export function useAudioRecorder(appointmentId: string) {
@@ -30,7 +35,18 @@ export function useAudioRecorder(appointmentId: string) {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const startTimeRef = useRef<number>(0);
+
+  // Add cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        mediaRecorderRef.current.stop();
+      }
+    };
+  }, []);
 
   const startRecording = useCallback(async () => {
     try {
@@ -52,36 +68,36 @@ export function useAudioRecorder(appointmentId: string) {
       };
 
       mediaRecorder.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: 'audio/webm' });
+        const blob = new Blob(chunksRef.current, { type: 'audio/wav' });
         const url = URL.createObjectURL(blob);
-        const elapsed = Math.round((Date.now() - startTimeRef.current) / 1000);
-
-        const newRecording: Recording = {
-          id: `REC-${Date.now()}`,
-          appointmentId,
-          blob,
-          url,
-          duration: elapsed,
-          timestamp: new Date().toISOString(),
-        };
-
-        addRecording(newRecording);
-        setRecordings(getRecordingsByAppointment(appointmentId));
-
+        
+        setDuration(currentDuration => {
+          const newRecording: Recording = {
+            id: `REC-${Date.now()}`,
+            appointmentId,
+            blob,
+            url,
+            duration: currentDuration,
+            timestamp: new Date().toISOString(),
+          };
+          addRecording(newRecording);
+          setRecordings(getRecordingsByAppointment(appointmentId));
+          return 0; // reset duration state
+        });
+        
         // Stop all tracks to release the microphone
         stream.getTracks().forEach(track => track.stop());
       };
 
       mediaRecorder.start(1000); // Collect data every second
       mediaRecorderRef.current = mediaRecorder;
-      startTimeRef.current = Date.now();
       setIsRecording(true);
       setIsPaused(false);
       setDuration(0);
 
       timerRef.current = setInterval(() => {
-        setDuration(Math.round((Date.now() - startTimeRef.current) / 1000));
-      }, 500);
+        setDuration(prev => prev + 1);
+      }, 1000);
 
     } catch (err) {
       console.error('Microphone access error:', err);
@@ -105,6 +121,10 @@ export function useAudioRecorder(appointmentId: string) {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
       mediaRecorderRef.current.pause();
       setIsPaused(true);
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
     }
   }, []);
 
@@ -112,6 +132,9 @@ export function useAudioRecorder(appointmentId: string) {
     if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'paused') {
       mediaRecorderRef.current.resume();
       setIsPaused(false);
+      timerRef.current = setInterval(() => {
+        setDuration(prev => prev + 1);
+      }, 1000);
     }
   }, []);
 

@@ -1,73 +1,36 @@
-# React + TypeScript + Vite
+# MediCore Provider Portal - React + TypeScript + Vite
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+This application provides a comprehensive UI and layout for medical providers and their patients. It supports dashboard views spanning clinical appointments, medical report generation, AI-powered medical voice scribing, and document viewers.
 
-Currently, two official plugins are available:
+## Current State
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+The initial hackathon layout and core feature structure exist, backed by an in-memory mock data backend. No real persistent database or authentication systems are tied to the UI. The application uses `Vite`, `React`, `TypeScript`, `Tailwind CSS`, and `lucide-react` for the overall UI framework.
 
-## React Compiler
+## Core Features Implemented
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **Provider Dashboard**
+  - Select appointments to view clinical documents.
+  - Dictate audio via the Voice Recorder tab, featuring animated durations and state management.
+  - Automatically transcribe voice input using a simulated AI system into Draft Notes.
+  - Convert combined transcribed and manual text into real PDF reports using `jspdf`.
+  - Provide fallback or original file views spanning `.md` text structures via `react-markdown` and raw `.pdf` blob streams.
+  - Allow medical document file uploads, strictly regulated to portable documents directly.
 
-## Expanding the ESLint configuration
+- **Patient Dashboard**
+  - Navigate between existing generated PDF/Markdown reports or engage with an AI conversational assistant placeholder.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## Development
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```sh
+npm install
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+Build for production using:
+```sh
+npm run build
 ```
+
+## Maintenance & Compliance
+
+The codebase attempts to maintain `GUIDELINES.md` rules by storing credentials loosely from version control files via `.env` files conceptually, retaining modular React structure natively, and refraining strictly from informal emotional tags universally.

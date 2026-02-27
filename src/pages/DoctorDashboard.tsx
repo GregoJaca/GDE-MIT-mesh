@@ -13,8 +13,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import ReportViewer from '@/components/ReportViewer';
-import { jsPDF } from 'jspdf';
-import { setGeneratedPdf, bumpPdfStoreVersion } from '@/lib/pdf-store';
+import { generateAndStorePdf } from '@/lib/pdf-generator';
+import { APP_CONFIG } from '@/config/constants';
 
 function formatDuration(seconds: number): string {
   const m = Math.floor(seconds / 60).toString().padStart(2, '0');
@@ -44,7 +44,7 @@ export default function DoctorDashboard() {
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({ 
     onDrop,
-    accept: { 'application/pdf': ['.pdf'] }
+    accept: APP_CONFIG.SUPPORTED_DOCUMENT_TYPES
   });
 
   const {
@@ -86,61 +86,15 @@ export default function DoctorDashboard() {
     setSelectedAppointment({ ...selectedAppointment, report: editableNotes });
 
     if (isPdf) {
-      // Generate a real PDF from the notes using jspdf
-      const doc = new jsPDF();
-      const pageWidth = doc.internal.pageSize.getWidth();
-      const margin = 20;
-      const usableWidth = pageWidth - margin * 2;
+      generateAndStorePdf({
+        appointmentId: selectedAppointment.id,
+        topic: selectedAppointment.topic,
+        doctorId: selectedAppointment.doctorId,
+        date: selectedAppointment.date,
+        patientId: selectedPatientId,
+        reportNotes: editableNotes
+      });
 
-      // Title
-      doc.setFontSize(18);
-      doc.setFont('helvetica', 'bold');
-      doc.text(selectedAppointment.topic, margin, 25);
-
-      // Meta line
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(120);
-      doc.text(
-        `Provider: ${selectedAppointment.doctorId}  |  Date: ${new Date(selectedAppointment.date).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}  |  Patient: ${selectedPatientId}`,
-        margin, 34
-      );
-
-      // Divider
-      doc.setDrawColor(200);
-      doc.line(margin, 38, pageWidth - margin, 38);
-
-      // Vitals
-      doc.setFontSize(12);
-      doc.setFont('helvetica', 'bold');
-      doc.setTextColor(0);
-      doc.text('Vitals', margin, 48);
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'normal');
-      doc.text('Blood Pressure: 118/75   |   Heart Rate: 72 bpm   |   Weight: 142 lbs   |   Temp: 98.6\u00b0F', margin, 56);
-
-      // Clinical Notes
-      doc.setFontSize(12);
-      doc.setFont('helvetica', 'bold');
-      doc.text('Clinical Notes', margin, 70);
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'normal');
-      const lines = doc.splitTextToSize(editableNotes, usableWidth);
-      doc.text(lines, margin, 80);
-
-      // Footer
-      const pageCount = doc.getNumberOfPages();
-      for (let i = 1; i <= pageCount; i++) {
-        doc.setPage(i);
-        doc.setFontSize(8);
-        doc.setTextColor(160);
-        doc.text(`MediCore — Generated ${new Date().toLocaleString()} — Page ${i} of ${pageCount}`, margin, doc.internal.pageSize.getHeight() - 10);
-      }
-
-      const blob = doc.output('blob');
-      const blobUrl = URL.createObjectURL(blob);
-      setGeneratedPdf(selectedAppointment.id, blobUrl);
-      bumpPdfStoreVersion();
       setPdfVersion(v => v + 1);
       alert('PDF generated and saved to this appointment\'s Report tab!');
     } else {
@@ -277,7 +231,7 @@ export default function DoctorDashboard() {
                     )}
                     
                     {!isRecording ? (
-                      <Button onClick={startRecording} className="bg-brand-teal hover:bg-brand-teal/90 text-white shadow-sm flex items-center gap-2">
+                      <Button onClick={startRecording} className="bg-red-600 hover:bg-red-700 text-white shadow-sm flex items-center gap-2">
                         <Mic className="w-4 h-4" />
                         Start Recording
                       </Button>
@@ -301,10 +255,10 @@ export default function DoctorDashboard() {
                                 prev + (prev ? '\n\n' : '') + 
                                 '[AI Transcription]: Patient presents with continued joint discomfort. Vitals are stable. Advised to continue current physical therapy regimen for another 4 weeks and return for follow-up.'
                               );
-                            }, 1000);
+                            }, APP_CONFIG.SCRIBE_DELAY_MS);
                           }} 
-                          variant="outline" 
-                          className="flex items-center gap-2 border-red-300 text-red-700 hover:bg-red-50 dark:hover:bg-red-950/50"
+                           variant="outline" 
+                          className="flex items-center gap-2 border-slate-300 text-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800"
                         >
                           <Square className="w-4 h-4" /> Stop & Transcribe
                         </Button>
@@ -331,12 +285,7 @@ export default function DoctorDashboard() {
 
               {/* Vitals */}
               <div className="grid grid-cols-4 gap-4">
-                {[
-                  { label: 'Blood Pressure', value: '118/75' },
-                  { label: 'Heart Rate', value: '72 bpm' },
-                  { label: 'Weight', value: '142 lbs' },
-                  { label: 'Temperature', value: '98.6°F' },
-                ].map((v) => (
+                {APP_CONFIG.VITAL_SIGNS.map((v) => (
                   <div key={v.label} className="bg-slate-50 dark:bg-slate-800 rounded-lg p-4 border border-slate-100 dark:border-slate-700">
                     <p className="text-xs text-slate-500 dark:text-slate-400 font-medium uppercase tracking-wider mb-1">{v.label}</p>
                     <p className="text-lg font-bold text-slate-900 dark:text-white">{v.value}</p>
@@ -358,7 +307,7 @@ export default function DoctorDashboard() {
               {/* Action Buttons */}
               <div className="pt-6 border-t border-slate-100 dark:border-slate-800 flex gap-4">
                 <button 
-                  className="px-6 py-2.5 bg-brand-plum hover:bg-brand-plum/90 text-white font-medium rounded-lg shadow-sm transition-colors flex items-center gap-2"
+                  className="px-6 py-2.5 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg shadow-sm transition-colors flex items-center gap-2"
                   onClick={() => handleSaveNotes(true)}
                 >
                   <FileText className="w-4 h-4" />

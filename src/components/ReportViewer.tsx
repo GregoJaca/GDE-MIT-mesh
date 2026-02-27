@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react';
-import { FileText, Download, ExternalLink, Eye } from 'lucide-react';
+import { FileText, Download, ExternalLink, Eye, FileCode } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { getGeneratedPdf } from '@/lib/pdf-store';
+import ReactMarkdown from 'react-markdown';
+import { appointments } from '@/lib/mock-data';
+import { APP_CONFIG } from '@/config/constants';
 
 interface ReportPdf {
   title: string;
@@ -18,31 +21,31 @@ export const mockReportPdfs: Record<string, ReportPdf> = {
     title: 'Annual Physical — Clinical Report',
     date: '2023-10-14',
     provider: 'Dr. Amelia Brooks',
-    pdfUrl: '/reports/tetelsor.pdf',
+    pdfUrl: APP_CONFIG.DEFAULT_PDF_URL,
   },
   'APP-002': {
     title: 'Lab Results Review — Lipid Panel & Metabolic',
     date: '2023-11-05',
     provider: 'Dr. Amelia Brooks',
-    pdfUrl: '/reports/tetelsor.pdf',
+    pdfUrl: APP_CONFIG.DEFAULT_PDF_URL,
   },
   'APP-003': {
     title: 'Dermatology Consult — Lesion Evaluation',
     date: '2024-02-28',
     provider: 'Dr. James Liu',
-    pdfUrl: '/reports/tetelsor.pdf',
+    pdfUrl: APP_CONFIG.DEFAULT_PDF_URL,
   },
   'APP-004': {
     title: 'Orthopedic Evaluation — Right Knee',
     date: '2024-01-15',
     provider: 'Dr. Helena Vasquez',
-    pdfUrl: '/reports/tetelsor.pdf',
+    pdfUrl: APP_CONFIG.DEFAULT_PDF_URL,
   },
   'APP-005': {
     title: 'Neurology — Migraine Follow-up',
     date: '2024-02-10',
     provider: 'Dr. Raj Patel',
-    pdfUrl: '/reports/tetelsor.pdf',
+    pdfUrl: APP_CONFIG.DEFAULT_PDF_URL,
   },
 };
 
@@ -57,7 +60,9 @@ interface ReportViewerProps {
 
 export default function ReportViewer({ appointmentId, pdfVersion }: ReportViewerProps) {
   const report = getReportForAppointment(appointmentId);
+  const appointmentDoc = appointments.find(a => a.id === appointmentId);
   const [isOpen, setIsOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<'pdf' | 'md'>('pdf');
 
   // Close the popup if it was open when switching appointments
   useEffect(() => {
@@ -158,28 +163,72 @@ export default function ReportViewer({ appointmentId, pdfVersion }: ReportViewer
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent className="max-w-5xl h-[90vh] flex flex-col p-0 overflow-hidden bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800">
           <DialogHeader className="p-4 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 shrink-0">
-            <DialogTitle className="flex justify-between items-center pr-6">
-              <span className="flex items-center gap-2 text-brand-plum dark:text-brand-lime">
-                <FileText className="w-5 h-5 text-brand-teal" />
+            <DialogTitle className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pr-6">
+              <span className="flex items-center gap-2 text-brand-plum dark:text-brand-lime truncate">
+                {viewMode === 'pdf' ? <FileText className="w-5 h-5 text-brand-teal shrink-0" /> : <FileCode className="w-5 h-5 text-brand-teal shrink-0" />}
                 {title}
               </span>
-              <div className="flex gap-2">
-                <Button size="sm" variant="outline" className="gap-2 h-8 text-xs border-slate-200 dark:border-slate-700" onClick={() => window.open(activePdfUrl, '_blank')}>
-                   <ExternalLink className="w-3.5 h-3.5" /> Open in New Tab
-                </Button>
-                <Button size="sm" variant="outline" className="gap-2 h-8 text-xs border-slate-200 dark:border-slate-700" asChild>
-                   <a href={activePdfUrl} download><Download className="w-3.5 h-3.5" /> Download PDF</a>
-                </Button>
+              <div className="flex flex-wrap items-center gap-2">
+                {hasGenerated && (
+                  <div className="flex bg-slate-200/50 dark:bg-slate-800 rounded-lg p-0.5 mr-2 border border-slate-200 dark:border-slate-700">
+                    <button 
+                      onClick={() => setViewMode('pdf')}
+                      className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${viewMode === 'pdf' ? 'bg-white dark:bg-slate-700 text-brand-teal shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                    >
+                      PDF View
+                    </button>
+                    <button 
+                      onClick={() => setViewMode('md')}
+                      className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${viewMode === 'md' ? 'bg-white dark:bg-slate-700 text-brand-teal shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                    >
+                      Markdown View
+                    </button>
+                  </div>
+                )}
+                
+                {viewMode === 'pdf' ? (
+                  <>
+                    <Button size="sm" variant="outline" className="gap-2 h-8 text-xs border-slate-200 dark:border-slate-700" onClick={() => window.open(activePdfUrl, '_blank')}>
+                      <ExternalLink className="w-3.5 h-3.5" /> Open in New Tab
+                    </Button>
+                    <Button size="sm" variant="outline" className="gap-2 h-8 text-xs border-slate-200 dark:border-slate-700" asChild>
+                      <a href={activePdfUrl} download><Download className="w-3.5 h-3.5" /> Download PDF</a>
+                    </Button>
+                  </>
+                ) : (
+                  <Button size="sm" variant="outline" className="gap-2 h-8 text-xs border-slate-200 dark:border-slate-700" onClick={() => {
+                    const blob = new Blob([appointmentDoc?.report || ''], { type: 'text/markdown' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `Clinical_Notes_${appointmentId}.md`;
+                    a.click();
+                  }}>
+                    <Download className="w-3.5 h-3.5" /> Download .MD
+                  </Button>
+                )}
               </div>
             </DialogTitle>
           </DialogHeader>
-          <div className="flex-1 bg-slate-200 dark:bg-slate-950 relative">
-            <iframe
-              key={iframeKey}
-              src={`${activePdfUrl}#toolbar=0`}
-              className="w-full h-full border-0 absolute inset-0 bg-white"
-              title={title}
-            />
+          <div className="flex-1 bg-slate-200 dark:bg-slate-950 relative overflow-auto">
+            {viewMode === 'pdf' ? (
+              <iframe
+                key={iframeKey}
+                src={`${activePdfUrl}#toolbar=0`}
+                className="w-full h-full border-0 absolute inset-0 bg-white"
+                title={title}
+              />
+            ) : (
+              <div className="w-full min-h-full bg-slate-50 dark:bg-slate-900 p-8 sm:p-12">
+                <div className="max-w-3xl mx-auto bg-white dark:bg-slate-950 p-8 sm:p-10 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800">
+                  <article className="prose prose-slate dark:prose-invert lg:prose-lg max-w-none prose-headings:text-brand-plum dark:prose-headings:text-brand-lime prose-a:text-brand-teal">
+                    <ReactMarkdown>
+                      {appointmentDoc?.report || '*No markdown content available.*'}
+                    </ReactMarkdown>
+                  </article>
+                </div>
+              </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>
