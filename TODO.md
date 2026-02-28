@@ -43,7 +43,7 @@
 - [x] Extract reporting formatting configuration into `.json` map (done)
 - [x] Create Beautiful HTML Templates for PDF reports (done - SOAP, H&P, Discharge, Consult, Op Note)
 - [x] Create Python generator (`generate_report.py`) utilizing `WeasyPrint` & `jinja2` (done)
-- [ ] Connect `generate_report` to main pipeline workflow (placeholder)
+- [x] Connect `generate_report` to main pipeline workflow (done)
 - [x] Add rigorous unit testing (partial - synthetic pipeline validation)
 - [x] Create synthetic clinical scenarios for testing and demonstration (done)
 - [x] Seed EESZT mock database with realistic patient journeys (done)
@@ -52,5 +52,5 @@
 ## Transcriber Module
 - [x] Configure Azure Speech SDK for speaker diarization (done)
 - [x] Create modular `transcriber/transcribe.py` (done)
-- [ ] Integrate transcription logic with parsing pipeline
-- [ ] Connect transcriber and report generator to frontend.
+- [x] Integrate transcription logic with parsing pipeline (done)
+- [x] Connect transcriber and report generator to frontend via Orchestrator API (done)

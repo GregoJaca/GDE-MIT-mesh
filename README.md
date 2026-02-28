@@ -10,8 +10,18 @@ The initial hackathon layout and core feature structure exist, backed by an in-m
 
 - **Backend & Data Integration**
   - EESZT-compliant mock SQLite database (`mesh_clinical.db`) mapped to strict Pydantic models.
+  - [x] Connect `generate_report` to main pipeline workflow (done)
+  - [x] Add rigorous unit testing (partial - synthetic pipeline validation)
+  - [x] Create synthetic clinical scenarios for testing and demonstration (done)
+  - [x] Seed EESZT mock database with realistic patient journeys (done)
   - Robust synthetic data generation via `seed.py` for testing medical records (Patients, Doctors, Documents).
   - Synthetic clinical transcripts and metadata fixtures in `backend/data/synthetic_transcripts/` for pipeline validation.
+
+## Transcriber Module
+- [x] Configure Azure Speech SDK for speaker diarization (done)
+- [x] Create modular `transcriber/transcribe.py` (done)
+- [x] Integrate transcription logic with parsing pipeline (done)
+- [x] Connect transcriber and report generator to frontend via Orchestrator API (done)
   - Direct integration between the React frontend and local backend endpoints for patient context and history.
 
 - **Provider Dashboard**
@@ -23,9 +33,15 @@ The initial hackathon layout and core feature structure exist, backed by an in-m
   - Allow medical document file uploads, strictly regulated to portable documents directly.
 
 - **Patient Dashboard**
-  - Navigate between existing generated PDF/Markdown reports or engage with an AI conversational assistant placeholder.
+  - Navigate between generated PDF/Markdown reports.
+  - Interactive Patient Summary rendered from structured AI extraction.
+  - AI Conversational Assistant (UI Placeholder - see MISSING.md).
 
-## Development
+## Documentation
+- [README.md](README.md) - Project overview and setup.
+- [TODO.md](TODO.md) - Implementation status and task list.
+- [MISSING.md](MISSING.md) - Gap analysis for hackathon readiness and future propositions.
+- [CONCEPT.md](backend/CONCEPT.md) - Original architectural vision.
 
 ```sh
 npm install
