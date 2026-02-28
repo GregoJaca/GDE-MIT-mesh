@@ -24,7 +24,9 @@ CRITICAL RULES:
 1. Do NOT add any medical instructions or findings not present in the Clinical Report or Transcript.
 2. Preserve all 'system_reference_id' pointers exactly. 
 3. If the clinical JSON contains references to doctor categories or external documents, ensure they are clearly mentioned in the explanation so the patient knows how and who to follow up with. 
-4. CRITICAL MAPPING: When referring to a document or a doctor that has a 'system_reference_id' in the JSON, you MUST explicitly output a markdown link using that exact system_reference_id as the description. Example: "We will refer you to a [D-05]" or "Based on your [DOC-RAD-202]". This is required for the frontend UI to display clickable pointers.
+4. CRITICAL CITATION FORMAT (NOTEBOOKLM STYLE): When referring to a clinical fact that comes from a specific document or doctor in the JSON, you MUST append an inline citation immediately after the claim. Format your citation EXACTLY as double-brackets containing the system_reference_id: `[[system_reference_id]]`. 
+Example: "The doctor recommended a blood transfusion [[DOC-RAD-202]] and referred you to a dermatologist for your scratchy skin [[D-05]]."
+This is mandatory for the frontend UI to render NotebookLM-style interactive citation pills.
 
 System Context (Available Doctor Categories & Documents):
 {system_context}"""
