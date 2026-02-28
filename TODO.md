@@ -24,8 +24,8 @@
 - **Medical Report PDF Generation**: [done]
 - **Patient Summary PDF Generation**: [placeholder]
 - **Document Preview Interface**: [done]
-- **Patient AI Assistant Interface**: [placeholder]
-- **AI Transcription Backend API**: [minimal implementation] (Simulated locally)
+- **Patient AI Assistant Interface**: [done]
+- **AI Transcription Backend API**: [integrated]
 - **Backend File Upload Integration**: [missing]
 - **General Profile & Settings Dialogs**: [minimal implementation]
 - **deleting audio when sended to the transcriber**: [done]
@@ -46,6 +46,5 @@
 ## Transcriber Module
 - [x] Configure Azure Speech SDK for speaker diarization (done)
 - [x] Create modular `transcriber/transcribe.py` (done)
-- [ ] Integrate transcription logic with parsing pipeline (placeholder)
+- [ ] Integrate transcription logic with parsing pipeline
 - [ ] Connect transcriber and report generator to frontend.
->>>>>>> Stashed changes
