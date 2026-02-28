@@ -36,7 +36,7 @@ class LLMClient:
         self, 
         messages: List[Dict[str, str]], 
         response_format: Type[T],
-        max_tokens: int = 4000
+        max_tokens: int = Config.MAX_TOKENS_DEFAULT
     ) -> T:
         """
         Generic structured output parser using the OpenAI Beta parse API.

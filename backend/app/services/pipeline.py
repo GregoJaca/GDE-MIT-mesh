@@ -1,6 +1,7 @@
 import logging
 import json
 from app.core.llm_client import LLMClient
+from app.core.config import Config
 from app.models.llm_schemas import ClinicalExtractionThoughtProcess, PatientSummary
 from app.services.scrubber import scrubber
 from app.core.prompts import CLINICAL_EXTRACTION_SYSTEM_PROMPT, PATIENT_SUMMARY_SYSTEM_PROMPT
@@ -20,7 +21,7 @@ class ZeroHallucinationPipeline:
                 {"role": "user", "content": f"Transcript: {scrubbed_transcript}"}
             ],
             response_format=ClinicalExtractionThoughtProcess,
-            max_tokens=16384
+            max_tokens=Config.MAX_TOKENS_CLINICAL_EXTRACTION
         )
 
     def validate_quotes(self, report: ClinicalExtractionThoughtProcess, scrubbed_transcript: str) -> dict:
@@ -62,7 +63,7 @@ class ZeroHallucinationPipeline:
                 {"role": "user", "content": f"Clinical Report:\n{json.dumps(validated_clinical_dict)}\n\nTranscript:\n{scrubbed_transcript}"}
             ],
             response_format=PatientSummary,
-            max_tokens=8192
+            max_tokens=Config.MAX_TOKENS_PATIENT_SUMMARY
         )
         return parsed.model_dump()
 

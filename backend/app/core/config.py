@@ -13,6 +13,11 @@ class Config:
     # For structured outputs, we need either gpt-4o or a deployment that supports `response_format` of json_schema type
     MODEL = os.getenv("AZURE_OPENAI_DEPLOYMENT_NAME", "gpt-4o") 
     BASE_URL = f"{ENDPOINT.rstrip('/')}/openai/v1"
+    
+    # Centralized LLM magic numbers
+    MAX_TOKENS_CLINICAL_EXTRACTION = int(os.getenv("MAX_TOKENS_CLINICAL_EXTRACTION", "16384"))
+    MAX_TOKENS_PATIENT_SUMMARY = int(os.getenv("MAX_TOKENS_PATIENT_SUMMARY", "8192"))
+    MAX_TOKENS_DEFAULT = int(os.getenv("MAX_TOKENS_DEFAULT", "4000"))
 
 class SchemaConstraints:
     CONDITION_STATUS = Literal["CONFIRMED", "NEGATED", "SUSPECTED", "UNKNOWN"]
