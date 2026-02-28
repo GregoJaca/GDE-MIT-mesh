@@ -1,0 +1,90 @@
+# Mesh Implementation Plan: Cutting-Edge "Quick Wins" Architecture
+
+## Goal Description
+To secure a hackathon victory, we are injecting 5 low-effort, extremely high-impact features into the Mesh stack:
+1. **Human-in-the-Loop (Trust UX):** Splitting the generation flow so doctors can review the structured JSON before the PDF is generated.
+2. **Audit Trail:** Exposing the pre-existing `exact_quote` from the LLM extraction into the UI to prove Zero-Hallucination.
+3. **Actionable Next Steps:** Extracting the pre-existing `actionables` array from the Patient Summary to render Calendar/Task buttons.
+4. **Multilingual Toggle:** Adding a dynamic language parameter to the Patient Translation LLM.
+5. **Zen UX:** A minimalist, borderless, calm UI.
+
+Because our `llm_schemas.py` *already* forces the LLM to output `exact_quote` and `actionables`, the backend effort is significantly reduced to simply restructuring the API endpoints, while the heavy lifting will be in the React Frontend visualization.
+
+## Proposed Changes
+
+### [Backend Updates: API Splitting & Multilingual]
+
+#### [MODIFY] backend/app/models/api_models.py
+- Add a new `DraftResponse` model. It must return the full, raw hydrated Clinical dictionary (so the frontend can edit it), the `patient_summary_md`, the `actionables` array, and the `token_map` (if necessary).
+- Add a new `FinalizeRequest` model to accept the doctor-edited JSON payload.
+- Add an optional `language: str = "en"` to the `/generate-draft` form data to tell the LLM which language to use for the patient summary.
+
+#### [MODIFY] backend/app/core/prompts.py
+- Update `PATIENT_SUMMARY_SYSTEM_PROMPT` to accept a `{language}` parameter: `"Translate the provided Clinical Report... into layman terms in the following language: {language}"`.
+
+#### [MODIFY] backend/app/services/pipeline.py
+- Update `generate_patient_summary` signature to accept `language` and inject it into the prompt formatter. 
+
+#### [MODIFY] backend/app/services/orchestrator.py
+- Break `run_full_extraction` into two async methods:
+  1. `generate_draft(audio, patient_id, doctor_id, date, language)` -> Returns the validated dictionary drafts.
+  2. `finalize_report(patient_id, doctor_id, date, edited_clinical_dict)` -> Triggers `generate_report_from_dict` and returns the final PDF URL.
+
+#### [MODIFY] backend/app/main.py
+- Refactor `POST /api/v1/generate-consultation` into:
+  - `POST /api/v1/generate-draft` (Form data, handles audio parsing and transcription).
+  - `POST /api/v1/finalize-report` (JSON body, generates the final PDF).
+
+---
+
+### [Frontend Updates: Rendering the "Quick Wins"]
+
+#### [MODIFY] src/pages/DoctorDashboard.tsx
+- **State Management:** Add state for `draftClinicalData`, `patientSummary`, `selectedLanguage`, and `isDraftMode`.
+- **The "Review & Finalize" View:** Upon receiving the `generate-draft` response:
+  - Render an editable form for the Clinical Data (Chief Complaints, Assessments, Action Plan).
+  - Display the Patient Summary preview alongside it.
+  - Implement the **Audit Trail UX**: When hovering over a finding in the editable form, render a small tooltip displaying the `exact_quote` and `contextual_quote` to prove it wasn't hallucinated.
+- **Submission:** A large, prominent "Approve & Generate EMR" button that posts the edited state to `/api/v1/finalize-report`.
+
+#### [NEW] src/components/PatientSummaryView.tsx
+- **Multilingual UI:** Add a UI toggle for "English", "Hungarian", "Spanish" before starting the recording.
+- **Actionable Buttons:** Parse the `actionables` array returned in the draft response. For each actionable, render a distinct UI button block: "Add to Calendar" or "Set Reminder".
+- **EESZT Links:** Maintain the previously planned Markdown custom rendering to transform `[system_reference_id]` into styled "View in EESZT Portal" hyperlinks.
+
+## Verification Plan
+### Automated Tests
+- Fix any broken internal unit tests caused by the `orchestrator.py` and `main.py` endpoint refactoring.
+### Manual Verification
+- Boot `start.sh`.
+- Set language to `Hungarian`. Record a 15-second voice note.
+- Verify the backend returns the JSON draft.
+- Verify the frontend renders the draft, allowing the user to hover over an assessment to see the exact transcript quote.
+- Click "Finalize" -> Verify the PDF is generated and served correctly.
+- Verify the Patient Summary contains functional calendar visual blocks.
+
+---
+
+## Phase 2: Professional UI Refactor
+
+### User Review Required
+The proposed UI changes will significantly alter the layout of `DoctorDashboard.tsx` to achieve a more minimalist, professional aesthetic. Please review the planned component consolidation.
+
+### Proposed Changes
+
+#### [MODIFY] frontend/src/App.tsx
+- **Routing Fix:** The infinite loop is caused by PDF `iframe` 404 errors falling through to the `/*` catch-all route, which redirects to `/` (Login) inside the modal. Update routing logic to handle `/reports/*` statically, and ensure `frontend/public/reports/tetelsor.pdf` exists.
+
+#### [MODIFY] frontend/src/pages/DoctorDashboard.tsx
+- **Minimalist Redesign:** Remove the redundant, overly tall "Active Patient" banner. The patient context is already clear from the sidebar selection.
+- **Unified Palette:** Standardize button colors and states to a cohesive medical-tech theme (e.g., Brand Teal/Mint) instead of fragmented primary colors.
+- **Workflow Consolidation:** Restructure the visual hierarchy so the transition from "Draft Review" to "Finalized Report" feels like a single cohesive timeline rather than disjointed tabs.
+
+#### [MODIFY] frontend/src/components/shared/ReportViewer.tsx
+- Ensure the `iframe` correctly resolves asset paths from the public directory.
+
+### Phase 2 Verification Plan
+- Launch the browser subagent to click on "Dermatology Consult — Lesion Evaluation" and verify the infinite loop is permanently resolved.
+- Visually inspect the DOM for layout compression, ensuring no redundant patient headers remain. to hover over an assessment to see the exact transcript quote.
+- Click "Finalize" -> Verify the PDF is generated and served correctly.
+- Verify the Patient Summary contains functional calendar visual blocks.
