@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.core.llm_client import LLMClient
 from app.core.database import get_db
+from app.services.db_service import DBService
 from app.models.api_models import EncounterMetadata, OrchestrationResponse
 from app.services.pipeline import ZeroHallucinationPipeline
 from app.services.orchestrator import OrchestratorService
@@ -44,34 +45,42 @@ app.add_middleware(
 # Serves generated PDFs statically (for hackathon easy access)
 app.mount("/outputs", StaticFiles(directory="/tmp"), name="outputs")
 
+@app.get("/api/v1/patients")
+def get_patients(db: Session = Depends(get_db)):
+    """Returns a list of all patients."""
+    return DBService.get_all_patients(db)
+
+@app.get("/api/v1/doctors")
+def get_doctors(db: Session = Depends(get_db)):
+    """Returns a list of all available doctors."""
+    return DBService.get_available_doctors(db)
+
 @app.post("/api/v1/generate-consultation", response_model=OrchestrationResponse)
 async def generate_consultation(
-    metadata: str = Form(..., description="JSON string of EncounterMetadata"),
+    patient_id: str = Form(..., description="Used to fetch DB context."),
+    doctor_id: str = Form(..., description="Used for referral mapping."),
+    encounter_date: str = Form(..., description="ISO 8601 Datetime."),
+    format_id: str = Form("fmt_001", description="Report format ID."),
     audio: UploadFile = File(...),
     db: Session = Depends(get_db)
 ):
     """
-    Orchestrated endpoint: Ingests audio, fetches context, runs pipeline, returns PDF/MD links.
+    Orchestrated endpoint: Ingests minimal metadata + audio, fetches context internally, returns PDF/MD links.
     """
     try:
-        # 1. Parse Metadata
-        meta_dict = json.loads(metadata)
-        meta = EncounterMetadata(**meta_dict)
-        
-        # 2. Save Audio to Temp
-        audio_path = f"/tmp/incoming_{meta.patient_id}.wav"
+        # 1. Save Audio to Temp
+        audio_path = f"/tmp/incoming_{patient_id}.wav"
         with open(audio_path, "wb") as buffer:
             buffer.write(await audio.read())
-            
-        # 3. Run Orchestrator
+        
+        # 2. Run Orchestrator
         pdf_path, summary_md_path = await state.orchestrator.run_full_extraction(
             audio_file_path=audio_path,
+            format_id=format_id,
             db=db,
-            patient_id=meta.patient_id,
-            doctor_id_context=meta.doctor_id,
-            doctor_name_context=meta.doctor_name,
-            doctor_seal_context=meta.doctor_seal,
-            encounter_date=meta.encounter_date
+            patient_id=patient_id,
+            doctor_id=doctor_id,
+            encounter_date=encounter_date
         )
         
         # Read MD summary
@@ -81,7 +90,12 @@ async def generate_consultation(
         return OrchestrationResponse(
             medical_report_pdf_url=f"/outputs/{pdf_path.split('/')[-1]}",
             patient_summary_md=summary_content,
-            administrative_metadata=meta.model_dump()
+            administrative_metadata={
+                "patient_id": patient_id,
+                "doctor_id": doctor_id,
+                "encounter_date": encounter_date,
+                "format_id": format_id
+            }
         )
         
     except Exception as e:

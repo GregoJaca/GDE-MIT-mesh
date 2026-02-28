@@ -18,9 +18,11 @@ class ContextDocument(BaseModel):
 class EncounterMetadata(BaseModel):
     patient_id: str = Field(..., description="Used to fetch DB context.")
     doctor_id: str = Field(..., description="Used for referral mapping.")
-    doctor_name: str = Field(..., description="For report header.")
-    doctor_seal: str = Field(..., description="For report validation.")
     encounter_date: str = Field(..., description="ISO 8601 Datetime.")
+<<<<<<< Updated upstream
+=======
+    format_id: str = Field(default="fmt_001", description="Report format ID.")
+>>>>>>> Stashed changes
 
 class OrchestrationResponse(BaseModel):
     medical_report_pdf_url: str

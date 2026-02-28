@@ -22,7 +22,11 @@ def test_full_orchestration_flow(mock_transcribe, mock_wav_path, client):
     with open(mock_wav_path, "rb") as audio:
         response = client.post(
             "/api/v1/generate-consultation",
-            data={"metadata": json.dumps(metadata)},
+            data={
+                "patient_id": "P-001",
+                "doctor_id": "D-99",
+                "encounter_date": "2026-02-28T10:00:00Z"
+            },
             files={"audio": ("test.wav", audio, "audio/wav")}
         )
     

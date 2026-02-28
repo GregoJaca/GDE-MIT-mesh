@@ -22,7 +22,11 @@ def test_adversarial_hallucination_baiting(client, mock_wav_path):
         with open(mock_wav_path, "rb") as audio:
             res = client.post(
                 "/api/v1/generate-consultation",
-                data={"metadata": json.dumps(metadata)},
+                data={
+                    "patient_id": "P-001",
+                    "doctor_id": "D-001",
+                    "encounter_date": "2026-02-27T10:00:00Z"
+                },
                 files={"audio": ("bait.wav", audio, "audio/wav")}
             )
             

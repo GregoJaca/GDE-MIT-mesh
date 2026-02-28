@@ -52,43 +52,33 @@ Takes a medical audio recording and builds a full report by fetching context fro
 | Field | Type | Description |
 |---|---|---|
 | `audio` | `File (WAV)` | Mono WAV file, 16kHz recommended. |
-| `metadata` | `JSON String` | metadata payload (see below). |
-
-**Metadata Structure**
-```json
-{
-  "patient_id": "string",
-  "doctor_id": "string",
-  "doctor_name": "string",
-  "doctor_seal": "string",
-  "encounter_date": "ISO8601 String"
-}
-```
+| `patient_id` | `String` | Patient identifier for DB context fetching. |
+| `doctor_id` | `String` | Doctor identifier for DB context fetching. |
+| `encounter_date` | `ISO8601 String` | Date and time of the encounter. |
+| `format_id` | `String` | Document generation template (default: `fmt_001`). |
 
 **Response (JSON)**
 ```json
 {
-  "session_id": "string",
-  "status": "string",
   "medical_report_pdf_url": "string (URL to generated PDF)",
   "patient_summary_md": "string (Markdown content)",
   "administrative_metadata": {
-    "extracted_at": "ISO8601 String",
-    "doctor_name": "string",
-    "doctor_seal": "string",
-    "patient_name": "string"
+    "patient_id": "string",
+    "doctor_id": "string",
+    "encounter_date": "ISO8601 String",
+    "format_id": "string"
   }
 }
 ```
 
 ## Module: Orchestrator
 The `OrchestratorService` manages the workflow:
-1.  **Ingestion**: Receives audio and metadata.
+1.  **Ingestion**: Receives audio and minimal identifiers.
 2.  **Parallel Execution**:
     *   **Transcription**: Azure Speech (Diarized).
-    *   **Context Retrieval**: DB fetches for patient history and doctor info.
-3.  **Intelligence**: Zero-Hallucination LLM Pipeline (Presidio Scrubbing + Context Injection).
-4.  **Generation**: WeasyPrint generates PDF/MD reports.
+    *   **Context Retrieval**: DB fetches for patient history, context docs, and available doctor categories (PII-free).
+3.  **Intelligence**: Zero-Hallucination LLM Pipeline (Presidio Scrubbing + Context Injection + PII-Free Patient Summary Generation).
+4.  **Generation**: WeasyPrint generates SOAP-mapped PDF/MD reports.
 
 ## Installation & Setup
 

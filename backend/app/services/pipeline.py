@@ -53,13 +53,13 @@ class ZeroHallucinationPipeline:
 
         return valid_report
 
-    def generate_patient_summary(self, validated_clinical_dict: dict) -> dict:
-        system_prompt = PATIENT_SUMMARY_SYSTEM_PROMPT
+    def generate_patient_summary(self, validated_clinical_dict: dict, scrubbed_transcript: str, system_context: str) -> dict:
+        system_prompt = PATIENT_SUMMARY_SYSTEM_PROMPT.format(system_context=system_context)
 
         parsed = self.llm.parse_completion(
             messages=[
                 {"role": "system", "content": system_prompt},
-                {"role": "user", "content": json.dumps(validated_clinical_dict)}
+                {"role": "user", "content": f"Clinical Report:\n{json.dumps(validated_clinical_dict)}\n\nTranscript:\n{scrubbed_transcript}"}
             ],
             response_format=PatientSummary,
             max_tokens=8192
@@ -71,10 +71,10 @@ class ZeroHallucinationPipeline:
         # 1. PII Scrubbing
         scrubbed_transcript, token_map = scrubber.scrub(raw_transcript)
         
-        # 2. Stringify system context (including available doctors)
+        # 2. Stringify system context (including available doctor categories)
         system_context = json.dumps({
             "context_documents": metadata_context.get("context_documents", []),
-            "available_doctors": metadata_context.get("available_doctors", [])
+            "available_doctor_categories": metadata_context.get("available_doctor_categories", [])
         })
         
         # 3. LLM Call 1: Structured Extraction (CoVe)
@@ -89,7 +89,11 @@ class ZeroHallucinationPipeline:
 
         # 5. LLM Call 2: Patient Summary Translation
         try:
-            patient_summary_dict = self.generate_patient_summary(validated_clinical_dict)
+            patient_summary_dict = self.generate_patient_summary(
+                validated_clinical_dict=validated_clinical_dict,
+                scrubbed_transcript=scrubbed_transcript,
+                system_context=system_context
+            )
         except Exception as e:
             logger.error(f"Patient Summary Failed: {e}")
             raise

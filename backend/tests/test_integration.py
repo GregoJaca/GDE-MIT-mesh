@@ -20,7 +20,11 @@ def test_realistic_e2e_pipeline(client, mock_wav_path):
     with open(mock_wav_path, "rb") as audio:
         response = client.post(
             "/api/v1/generate-consultation",
-            data={"metadata": json.dumps(metadata)},
+            data={
+                "patient_id": "P-001",
+                "doctor_id": "D-9901",
+                "encounter_date": "2026-02-27T10:00:00Z"
+            },
             files={"audio": ("alexander_hamilton.wav", audio, "audio/wav")}
         )
         
@@ -59,7 +63,11 @@ def test_ultra_rigorous_multi_entity_mapping(client, mock_wav_path):
     with open(mock_wav_path, "rb") as audio:
         res = client.post(
             "/api/v1/generate-consultation",
-            data={"metadata": json.dumps(metadata)},
+            data={
+                "patient_id": "P-001",
+                "doctor_id": "D-001",
+                "encounter_date": "2026-02-27T14:30:00Z"
+            },
             files={"audio": ("jean_pierre.wav", audio, "audio/wav")}
         )
         

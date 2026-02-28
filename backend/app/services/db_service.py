@@ -44,3 +44,21 @@ class DBService:
             {"doctor_id": d.id, "name": d.name, "specialty": getattr(d, 'specialty', 'Specialist')} 
             for d in doctors
         ]
+
+    @staticmethod
+    def get_doctor_context(db: Session, doctor_id: str):
+        """Fetches specific doctor details for the report header."""
+        doctor = db.query(Doctor).filter(Doctor.id == doctor_id).first()
+        if not doctor:
+            logger.warning(f"Doctor {doctor_id} not found in DB.")
+            return {"name": "Unknown Doctor", "seal_number": "N/A"}
+        return {"name": doctor.name, "seal_number": doctor.seal_number}
+
+    @staticmethod
+    def get_all_patients(db: Session):
+        """Fetches a lightweight list of all patients for the frontend UI."""
+        patients = db.query(Patient).all()
+        return [
+            {"patient_id": p.id, "name": p.name, "taj": p.taj, "dob": str(p.date_of_birth)}
+            for p in patients
+        ]
