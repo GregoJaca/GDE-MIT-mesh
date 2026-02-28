@@ -37,11 +37,24 @@ class DBService:
     @staticmethod
     def get_available_doctors(db: Session):
         """
-        Returns a list of doctors for follow-up referral mapping.
+        Returns doctors with specialty for LLM referral mapping.
+        Specialty is derived from a known map since the Doctor model has no specialty column.
         """
+        # Specialty map keyed by doctor ID — update when new doctors are seeded
+        SPECIALTY_MAP = {
+            "D-99": "General Practitioner",
+            "D-02": "Cardiologist",
+            "D-03": "Neurologist",
+            "D-04": "Orthopedic Surgeon",
+            "D-05": "Dermatologist",
+        }
         doctors = db.query(Doctor).all()
         return [
-            {"doctor_id": d.id, "name": d.name, "specialty": getattr(d, 'specialty', 'Specialist')} 
+            {
+                "doctor_id": d.id,
+                "name": d.name,
+                "specialty": SPECIALTY_MAP.get(d.id, "Specialist"),
+            }
             for d in doctors
         ]
 
