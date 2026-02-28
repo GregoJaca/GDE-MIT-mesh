@@ -1,5 +1,5 @@
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Settings, LogOut, Activity, Clock, Bell, ChevronRight, Calendar, User } from 'lucide-react';
+import { LayoutDashboard, Settings, LogOut, Activity, Clock, Bell, ChevronRight, Calendar, User, ChevronDown } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -18,7 +18,8 @@ import {
     setCasesCache,
     setAppointmentsCache,
 } from '@/stores/appointment.store';
-import type { Appointment, MedicalCase, UserRole } from '@/types';
+import { fetchPatients } from '@/services/patient.service';
+import type { Appointment, MedicalCase, Patient, UserRole } from '@/types';
 
 // ---- Context ----
 interface AppointmentContextType {
@@ -65,16 +66,25 @@ export default function DashboardLayout({ role }: { role: UserRole }) {
     const location = useLocation();
     const { theme, setTheme } = useTheme();
 
-    const [selectedPatientId, setSelectedPatientId] = useState(DEFAULT_PATIENT_ID);
+    const [patients, setPatients] = useState<Patient[]>([]);
+    const [selectedPatientId, setSelectedPatientIdState] = useState(DEFAULT_PATIENT_ID);
     const [cases, setCases] = useState<MedicalCase[]>([]);
     const [allAppointments, setAllAppointments] = useState<Appointment[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [expandedCaseIds, setExpandedCaseIds] = useState<Set<string>>(new Set());
     const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
 
-    // Load cases and appointments from the API
+    // Load patient list from DB
+    useEffect(() => {
+        fetchPatients()
+            .then(setPatients)
+            .catch(console.error);
+    }, []);
+
+    // Load cases and appointments from the API when patient changes
     const loadPatientData = useCallback(async (patientId: string) => {
         setIsLoading(true);
+        setSelectedAppointment(null);
         try {
             const fetchedCases = await fetchCasesByPatient(patientId);
             setCases(fetchedCases);
@@ -96,7 +106,6 @@ export default function DashboardLayout({ role }: { role: UserRole }) {
                 setSelectedAppointment(firstCaseApps[0] || null);
             } else {
                 setExpandedCaseIds(new Set());
-                setSelectedAppointment(null);
             }
         } catch (err) {
             console.error('Failed to load patient data:', err);
@@ -110,6 +119,10 @@ export default function DashboardLayout({ role }: { role: UserRole }) {
     useEffect(() => {
         loadPatientData(selectedPatientId);
     }, [selectedPatientId, loadPatientData]);
+
+    const handlePatientSwitch = (id: string) => {
+        setSelectedPatientIdState(id);
+    };
 
     const selectedCase = selectedAppointment
         ? cases.find(c => c.id === selectedAppointment.caseId) ?? null
@@ -129,11 +142,6 @@ export default function DashboardLayout({ role }: { role: UserRole }) {
         });
     };
 
-    const handlePatientSwitch = (id: string) => {
-        setSelectedPatientId(id);
-        // loadPatientData will be triggered by the useEffect
-    };
-
     const navItems = [
         {
             label: 'Dashboard',
@@ -142,8 +150,9 @@ export default function DashboardLayout({ role }: { role: UserRole }) {
         },
     ];
 
-    const profileLabel = role === 'doctor' ? 'Dr. Smith' : 'Patient';
-    const profileId = role === 'doctor' ? 'D-4099' : selectedPatientId;
+    const selectedPatient = patients.find(p => p.id === selectedPatientId);
+    const profileLabel = role === 'doctor' ? 'Dr. Sarah Miller' : (selectedPatient?.name ?? 'Patient');
+    const profileId = role === 'doctor' ? 'D-99' : selectedPatientId;
 
     return (
         <AppointmentContext.Provider
@@ -159,7 +168,7 @@ export default function DashboardLayout({ role }: { role: UserRole }) {
                 {/* Sidebar */}
                 <aside className="w-72 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col shadow-sm z-10 transition-colors">
                     {/* Logo */}
-                    <div className="h-14 flex items-center px-5 border-b border-slate-100 shrink-0">
+                    <div className="h-14 flex items-center px-5 border-b border-slate-100 dark:border-slate-800 shrink-0">
                         <div className="flex items-center gap-2 text-brand-teal">
                             <Activity className="w-6 h-6" />
                             <span className="text-xl font-bold tracking-tight text-brand-plum dark:text-white">MediCore</span>
@@ -187,8 +196,61 @@ export default function DashboardLayout({ role }: { role: UserRole }) {
                         })}
                     </nav>
 
-                    <div className="px-4 py-2 shrink-0">
+                    <div className="px-4 py-1 shrink-0">
                         <div className="border-t border-slate-100 dark:border-slate-800" />
+                    </div>
+
+                    {/* Patient selector — loaded from DB */}
+                    <div className="px-4 pb-2 shrink-0">
+                        <p className="text-[11px] font-bold tracking-widest text-slate-400 uppercase mb-2 flex items-center gap-2">
+                            <User className="w-3.5 h-3.5" />
+                            Active Patient
+                        </p>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <button className="w-full flex items-center justify-between gap-2 px-3 py-2.5 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-brand-teal/50 hover:bg-brand-teal/5 transition-all text-left group">
+                                    <div className="flex items-center gap-2 min-w-0">
+                                        <div className="w-7 h-7 rounded-full bg-brand-teal/15 flex items-center justify-center shrink-0">
+                                            <User className="w-3.5 h-3.5 text-brand-teal" />
+                                        </div>
+                                        <div className="min-w-0">
+                                            <p className="text-sm font-semibold text-slate-700 dark:text-slate-200 truncate leading-tight">
+                                                {selectedPatient?.name ?? selectedPatientId}
+                                            </p>
+                                            <p className="text-[10px] text-slate-400 font-mono">{selectedPatientId}</p>
+                                        </div>
+                                    </div>
+                                    <ChevronDown className="w-4 h-4 text-slate-400 group-hover:text-brand-teal transition-colors shrink-0" />
+                                </button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="start" className="w-64 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl rounded-xl p-1">
+                                <DropdownMenuLabel className="text-[10px] font-bold uppercase tracking-widest text-slate-400 px-2 py-1.5">
+                                    Select Patient (from DB)
+                                </DropdownMenuLabel>
+                                <DropdownMenuSeparator className="bg-slate-100 dark:bg-slate-800 mx-1" />
+                                {patients.length === 0 ? (
+                                    <div className="px-3 py-2 text-xs text-slate-400">Loading patients…</div>
+                                ) : patients.map((p) => (
+                                    <DropdownMenuItem
+                                        key={p.id}
+                                        onClick={() => handlePatientSwitch(p.id)}
+                                        className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg cursor-pointer transition-colors ${p.id === selectedPatientId
+                                            ? 'bg-brand-teal/10 text-brand-teal font-semibold'
+                                            : 'dark:text-slate-200 dark:focus:bg-slate-800'
+                                            }`}
+                                    >
+                                        <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-[10px] font-bold ${p.id === selectedPatientId ? 'bg-brand-teal text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-500'}`}>
+                                            {p.name.charAt(0)}
+                                        </div>
+                                        <div className="min-w-0">
+                                            <p className="text-sm truncate">{p.name}</p>
+                                            <p className="text-[10px] font-mono text-slate-400">{p.id}</p>
+                                        </div>
+                                        {p.id === selectedPatientId && <span className="ml-auto text-brand-teal text-xs">✓</span>}
+                                    </DropdownMenuItem>
+                                ))}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                     </div>
 
                     {/* Case explorer */}
@@ -196,6 +258,11 @@ export default function DashboardLayout({ role }: { role: UserRole }) {
                         <h3 className="text-[11px] font-bold tracking-widest text-slate-400 uppercase flex items-center gap-2">
                             {role === 'doctor' ? <Clock className="w-3.5 h-3.5" /> : <Calendar className="w-3.5 h-3.5" />}
                             {role === 'doctor' ? 'Patient Cases' : 'My Cases'}
+                            {!isLoading && (
+                                <span className="ml-auto text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded-full font-bold">
+                                    {cases.length}
+                                </span>
+                            )}
                         </h3>
                     </div>
 
@@ -226,7 +293,7 @@ export default function DashboardLayout({ role }: { role: UserRole }) {
                                                 ? 'bg-gradient-to-br from-brand-teal/20 to-brand-lime/20 shadow-sm'
                                                 : 'bg-slate-100 dark:bg-slate-800 group-hover:bg-slate-200/80 dark:group-hover:bg-slate-700'
                                                 }`}>
-                                                {medCase.icon || ''}
+                                                {medCase.icon || '📋'}
                                             </div>
                                             <div className="flex-1 min-w-0">
                                                 <span className={`text-sm font-semibold truncate block leading-tight ${isActiveCase ? 'text-brand-plum dark:text-brand-lime' : 'text-slate-700 dark:text-slate-300'
@@ -279,7 +346,7 @@ export default function DashboardLayout({ role }: { role: UserRole }) {
                                 );
                             })}
                             {cases.length === 0 && !isLoading && (
-                                <p className="text-xs text-center text-slate-400 py-4">No cases found</p>
+                                <p className="text-xs text-center text-slate-400 py-4">No cases found for this patient</p>
                             )}
                         </div>
                     </ScrollArea>
