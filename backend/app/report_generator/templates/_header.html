@@ -6,9 +6,9 @@
     <title>Universal Header Segment</title>
     <style>
         .header-section {
-            border-bottom: 2px solid #000;
-            margin-bottom: 30px;
-            padding-bottom: 15px;
+            border-bottom: 1px solid #000;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
         }
 
         .header-grid {
@@ -43,21 +43,22 @@
         }
 
         .hospital-title {
-            font-size: 18pt;
+            font-size: 14pt;
             font-weight: bold;
             color: #000;
             margin: 0;
             text-align: right;
             text-transform: uppercase;
-            letter-spacing: 1px;
+            letter-spacing: 0.5px;
         }
 
         .report-main-title {
             color: #000;
             margin: 0;
-            font-size: 26pt;
+            font-size: 20pt;
             font-weight: bold;
             text-transform: uppercase;
+            letter-spacing: -0.5px;
         }
     </style>
 </head>
@@ -71,7 +72,7 @@
                     current_date }}</p>
             </div>
             <div>
-                <p class="hospital-title">{{ universal_header.get('hospital_name', 'University Medical Center') }}</p>
+                <p class="hospital-title">{{ universal_header.get('hospital_name', 'ECHO MEDICAL FACILITY') }}</p>
             </div>
         </div>
 
@@ -81,8 +82,8 @@
                 <span class="header-value">{{ universal_header.patient_name }}</span>
             </div>
             <div class="header-item">
-                <span class="header-label">Patient ID / TAJ</span>
-                <span class="header-value">{{ universal_header.patient_id }} / {{ universal_header.taj }}</span>
+                <span class="header-label">TAJ Number</span>
+                <span class="header-value">{{ universal_header.taj }}</span>
             </div>
             <div class="header-item">
                 <span class="header-label">Attending Provider</span>

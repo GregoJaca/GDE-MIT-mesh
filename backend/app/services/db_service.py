@@ -77,13 +77,22 @@ class DBService:
         ]
 
     @staticmethod
-    def save_consultation_results(db: Session, patient_id: str, doctor_id: str, encounter_date: str, pdf_url: str, patient_summary: str):
+    def save_consultation_results(db: Session, patient_id: str, doctor_id: str, encounter_date: str, pdf_url: str, patient_summary: str, appointment_id: str = None):
         """Persists the finished consultation artifacts into the patient's case and appointment timeline."""
         from app.models.persistence_models import MedicalCaseModel, AppointmentModel
         import uuid
         from dateutil.parser import parse
         import datetime
         
+        if appointment_id:
+            existing_appt = db.query(AppointmentModel).filter(AppointmentModel.id == appointment_id).first()
+            if existing_appt:
+                existing_appt.report = pdf_url
+                existing_appt.patient_summary = patient_summary
+                existing_appt.status = "Completed"
+                db.commit()
+                return
+
         try:
             dt = parse(encounter_date).date()
         except:

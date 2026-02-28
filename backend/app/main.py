@@ -164,7 +164,8 @@ async def finalize_report(request: FinalizeRequest, db: Session = Depends(get_db
             doctor_id=request.doctor_id,
             encounter_date=request.encounter_date,
             pdf_url=pdf_url,
-            patient_summary=hydrated_patient["layman_explanation"]
+            patient_summary=hydrated_patient["layman_explanation"],
+            appointment_id=request.appointment_id
         )
         
         return OrchestrationResponse(

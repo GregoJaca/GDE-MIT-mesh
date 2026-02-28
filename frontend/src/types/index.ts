@@ -84,6 +84,7 @@ export interface DraftResponse {
 }
 
 export interface FinalizeRequestPayload {
+    appointment_id?: string;
     patient_id: string;
     doctor_id: string;
     encounter_date: string;

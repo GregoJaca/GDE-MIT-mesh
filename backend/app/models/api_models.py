@@ -33,6 +33,7 @@ class DraftResponse(BaseModel):
     token_map: dict = Field(default={}, description="The presidio token map required for final re-hydration.")
 
 class FinalizeRequest(BaseModel):
+    appointment_id: Optional[str] = None
     patient_id: str
     doctor_id: str
     encounter_date: str

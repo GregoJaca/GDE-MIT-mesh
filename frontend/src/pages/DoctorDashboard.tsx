@@ -250,6 +250,7 @@ export default function DoctorDashboard() {
         setError(null);
         try {
             const result = await finalizeReport({
+                appointment_id: selectedAppointment.id,
                 patient_id: selectedPatientId,
                 doctor_id: DOCTOR_ID,
                 encounter_date: draft.administrative_metadata.encounter_date,

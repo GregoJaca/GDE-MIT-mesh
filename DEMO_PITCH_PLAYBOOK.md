@@ -12,7 +12,7 @@ It passively listens to the doctor-patient conversation and deterministically ou
 
 ### Technical Wedges (Why We Win)
 * **Zero-Hallucination Architecture:** We don't use loose LLM generation. We use strict Pydantic schema-enforced extraction. If the LLM generates a finding, it *must* cite the exact 1-to-4 word substring from the audio transcript.
-* **The "Opaque Pointer" Pattern (EESZT Integration):** We solve the data-privacy nightmare. Our backend *never* downloads actual medical histories. It only ingests opaque EESZT document IDs (e.g., `DOC-RAD-202`). When the doctor says *"I saw your X-Ray from Tuesday"*, the AI semantic-matches it to `DOC-RAD-202` and generates a secure, password-protected **Hyperlink** straight into the Hungarian EESZT portal. The patient clicks the link, authenticates via Ügyfélkapu, and sees the secure X-Ray. PII never touches the AI.
+* **Opaque Pointer" Pattern (EESZT Integration):** We solve the data-privacy nightmare. Our backend *never* downloads actual medical histories. It only ingests opaque EESZT document IDs (e.g., `DOC-RAD-202`). When the doctor says *"I saw your X-Ray from Tuesday"*, the AI semantic-matches it to `DOC-RAD-202` and generates a secure, password-protected **Hyperlink** straight into the Hungarian EESZT portal. The patient clicks the link, authenticates via Ügyfélkapu, and sees the secure X-Ray. PII never touches the AI.
 
 ---
 

@@ -23,6 +23,7 @@ export default function ReportViewer({
     const report = MOCK_REPORT_PDFS[appointmentId] ?? null;
     const [isOpen, setIsOpen] = useState(false);
     const [viewMode, setViewMode] = useState<'pdf' | 'md'>('pdf');
+    const [selectedPdfUrl, setSelectedPdfUrl] = useState<string>('');
 
     useEffect(() => {
         setIsOpen(false);
@@ -33,12 +34,16 @@ export default function ReportViewer({
     void mdVersion;
 
     const generatedPdfUrl = getGeneratedPdf(appointmentId);
-    const activePdfUrl = generatedPdfUrl || report?.pdfUrl || '';
-    const hasGeneratedPdf = !!generatedPdfUrl;
+    // Prefix the API url if appointmentReport is a relative path from the backend
+    const apiPrefix = import.meta.env.VITE_API_ROOT_URL || 'http://127.0.0.1:8000';
+    const dbReportUrl = appointmentReport ? (appointmentReport.startsWith('http') ? appointmentReport : `${apiPrefix}${appointmentReport}`) : '';
+
+    const activePdfUrl = generatedPdfUrl || dbReportUrl || report?.pdfUrl || '';
+    const hasGeneratedPdf = !!generatedPdfUrl || !!dbReportUrl;
     const generatedMd = getGeneratedMd(appointmentId);
     const hasGeneratedMd = !!generatedMd;
 
-    const totalReports = (hasGeneratedPdf ? 1 : 0) + (hasGeneratedMd ? 1 : 0) + (report ? 1 : 0);
+    const totalReports = (hasGeneratedPdf ? 1 : 0) + (hasGeneratedMd ? 1 : 0) + (report && !hasGeneratedPdf ? 1 : 0);
 
     if (!report && !hasGeneratedPdf && !hasGeneratedMd) {
         return (
@@ -85,7 +90,7 @@ export default function ReportViewer({
             {/* Report cards */}
             <div className="px-6 pb-6 space-y-3">
                 {hasGeneratedPdf && (
-                    <button onClick={() => { setViewMode('pdf'); setIsOpen(true); }} className="w-full text-left group">
+                    <button onClick={() => { setSelectedPdfUrl(generatedPdfUrl || dbReportUrl); setViewMode('pdf'); setIsOpen(true); }} className="w-full text-left group">
                         <div className="flex items-center gap-4 p-4 rounded-xl bg-gradient-to-r from-sky-50 to-cyan-50 dark:from-sky-950/60 dark:to-cyan-950/40 border border-sky-200 dark:border-sky-800 hover:border-sky-300 dark:hover:border-sky-700 hover:shadow-lg hover:shadow-sky-100 dark:hover:shadow-sky-950/30 transition-all duration-200 hover:-translate-y-px">
                             <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-sky-500 to-cyan-500 flex items-center justify-center shadow-md shadow-sky-500/25 shrink-0">
                                 <FileText className="w-5 h-5 text-white" />
@@ -123,8 +128,9 @@ export default function ReportViewer({
                 {report && (
                     <button
                         onClick={() => {
-                            if (!hasGeneratedPdf) { setViewMode('pdf'); setIsOpen(true); }
-                            else window.open(report.pdfUrl, '_blank');
+                            setSelectedPdfUrl(report.pdfUrl || activePdfUrl);
+                            setViewMode('pdf');
+                            setIsOpen(true);
                         }}
                         className="w-full text-left group"
                     >
@@ -177,11 +183,11 @@ export default function ReportViewer({
                                 )}
                                 {viewMode === 'pdf' ? (
                                     <>
-                                        <Button size="sm" variant="outline" className="gap-1.5 h-7 text-xs" onClick={() => window.open(activePdfUrl, '_blank')}>
+                                        <Button size="sm" variant="outline" className="gap-1.5 h-7 text-xs" onClick={() => window.open(selectedPdfUrl || activePdfUrl, '_blank')}>
                                             <ExternalLink className="w-3 h-3" /> New Tab
                                         </Button>
                                         <Button size="sm" variant="outline" className="gap-1.5 h-7 text-xs" asChild>
-                                            <a href={activePdfUrl} download><Download className="w-3 h-3" /> Download</a>
+                                            <a href={selectedPdfUrl || activePdfUrl} download><Download className="w-3 h-3" /> Download</a>
                                         </Button>
                                     </>
                                 ) : (
@@ -202,7 +208,7 @@ export default function ReportViewer({
                     </DialogHeader>
                     <div className="flex-1 bg-slate-100 dark:bg-slate-950 relative overflow-auto">
                         {viewMode === 'pdf' ? (
-                            <iframe key={iframeKey} src={`${activePdfUrl}#toolbar=0`} className="w-full h-full border-0 absolute inset-0 bg-white" title={title} />
+                            <iframe key={iframeKey} src={`${selectedPdfUrl || activePdfUrl}#toolbar=0`} className="w-full h-full border-0 absolute inset-0 bg-white" title={title} />
                         ) : (
                             <div className="w-full min-h-full p-8 sm:p-12">
                                 <div className="max-w-3xl mx-auto bg-white dark:bg-slate-900 p-8 sm:p-10 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800">
