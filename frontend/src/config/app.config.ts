@@ -5,6 +5,7 @@ export const APP_CONFIG = {
     TITLE: import.meta.env.VITE_APP_TITLE || 'MediCore Medical Dashboard',
 
     API: {
+        ROOT_URL: import.meta.env.VITE_API_ROOT_URL || 'http://localhost:8000',
         BASE_URL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/v1',
         TRANSCRIBE_URL: import.meta.env.VITE_TRANSCRIBE_API_URL || 'http://localhost:8000/api/v1/transcribe',
         CONSULTATION_URL: import.meta.env.VITE_CONSULTATION_API_URL || 'http://localhost:8000/api/v1/generate-consultation',
@@ -17,7 +18,7 @@ export const APP_CONFIG = {
     },
 
     ASSETS: {
-        DEFAULT_PDF_URL: import.meta.env.VITE_DEFAULT_PDF_URL || '/reports/tetelsor.pdf',
+        DEFAULT_PDF_URL: import.meta.env.VITE_DEFAULT_PDF_URL || '',
     },
 
     UPLOAD: {

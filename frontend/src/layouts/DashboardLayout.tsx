@@ -10,12 +10,13 @@ import {
 import {
     Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger,
 } from '@/components/ui/dialog';
-import { createContext, useContext, useState, useMemo } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useTheme } from '@/components/shared/ThemeProvider';
 import {
-    getCasesByPatient,
-    getAppointmentsByCase,
-    getCaseById,
+    fetchCasesByPatient,
+    fetchAppointmentsByCase,
+    setCasesCache,
+    setAppointmentsCache,
 } from '@/stores/appointment.store';
 import type { Appointment, MedicalCase, UserRole } from '@/types';
 
@@ -65,14 +66,60 @@ export default function DashboardLayout({ role }: { role: UserRole }) {
     const { theme, setTheme } = useTheme();
 
     const [selectedPatientId, setSelectedPatientId] = useState(DEFAULT_PATIENT_ID);
-    const cases = useMemo(() => getCasesByPatient(selectedPatientId), [selectedPatientId]);
-    const [expandedCaseIds, setExpandedCaseIds] = useState<Set<string>>(
-        () => new Set(cases.length > 0 ? [cases[0].id] : []),
-    );
+    const [cases, setCases] = useState<MedicalCase[]>([]);
+    const [allAppointments, setAllAppointments] = useState<Appointment[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [expandedCaseIds, setExpandedCaseIds] = useState<Set<string>>(new Set());
+    const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
 
-    const firstCaseApps = cases.length > 0 ? getAppointmentsByCase(cases[0].id) : [];
-    const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(firstCaseApps[0] || null);
-    const selectedCase = selectedAppointment ? getCaseById(selectedAppointment.caseId) ?? null : null;
+    // Load cases and appointments from the API
+    const loadPatientData = useCallback(async (patientId: string) => {
+        setIsLoading(true);
+        try {
+            const fetchedCases = await fetchCasesByPatient(patientId);
+            setCases(fetchedCases);
+            setCasesCache(fetchedCases);
+
+            // Fetch appointments for all cases
+            const allApps: Appointment[] = [];
+            for (const c of fetchedCases) {
+                const apps = await fetchAppointmentsByCase(c.id);
+                allApps.push(...apps);
+            }
+            setAllAppointments(allApps);
+            setAppointmentsCache(allApps);
+
+            // Auto-select the first case and appointment
+            if (fetchedCases.length > 0) {
+                setExpandedCaseIds(new Set([fetchedCases[0].id]));
+                const firstCaseApps = allApps.filter(a => a.caseId === fetchedCases[0].id);
+                setSelectedAppointment(firstCaseApps[0] || null);
+            } else {
+                setExpandedCaseIds(new Set());
+                setSelectedAppointment(null);
+            }
+        } catch (err) {
+            console.error('Failed to load patient data:', err);
+            setCases([]);
+            setAllAppointments([]);
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        loadPatientData(selectedPatientId);
+    }, [selectedPatientId, loadPatientData]);
+
+    const selectedCase = selectedAppointment
+        ? cases.find(c => c.id === selectedAppointment.caseId) ?? null
+        : null;
+
+    const getAppointmentsForCase = useCallback((caseId: string) => {
+        return allAppointments
+            .filter(a => a.caseId === caseId)
+            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    }, [allAppointments]);
 
     const toggleCase = (caseId: string) => {
         setExpandedCaseIds((prev) => {
@@ -84,15 +131,7 @@ export default function DashboardLayout({ role }: { role: UserRole }) {
 
     const handlePatientSwitch = (id: string) => {
         setSelectedPatientId(id);
-        const newCases = getCasesByPatient(id);
-        const firstCase = newCases[0];
-        if (firstCase) {
-            setExpandedCaseIds(new Set([firstCase.id]));
-            setSelectedAppointment(getAppointmentsByCase(firstCase.id)[0] || null);
-        } else {
-            setExpandedCaseIds(new Set());
-            setSelectedAppointment(null);
-        }
+        // loadPatientData will be triggered by the useEffect
     };
 
     const navItems = [
@@ -137,8 +176,8 @@ export default function DashboardLayout({ role }: { role: UserRole }) {
                                     key={item.path}
                                     onClick={() => navigate(item.path)}
                                     className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all ${isActive
-                                            ? 'bg-brand-teal/10 text-brand-teal shadow-sm'
-                                            : 'text-brand-slate hover:bg-slate-50 hover:text-brand-plum dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white'
+                                        ? 'bg-brand-teal/10 text-brand-teal shadow-sm'
+                                        : 'text-brand-slate hover:bg-slate-50 hover:text-brand-plum dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white'
                                         }`}
                                 >
                                     <Icon className={`w-4 h-4 ${isActive ? 'text-brand-teal' : 'text-slate-400'}`} />
@@ -162,9 +201,13 @@ export default function DashboardLayout({ role }: { role: UserRole }) {
 
                     <ScrollArea className="flex-1 min-h-0">
                         <div className="px-3 pb-3 space-y-1.5">
-                            {cases.map((medCase) => {
+                            {isLoading ? (
+                                <div className="flex items-center justify-center py-8">
+                                    <div className="w-5 h-5 border-2 border-brand-teal border-t-transparent rounded-full animate-spin" />
+                                </div>
+                            ) : cases.map((medCase) => {
                                 const isExpanded = expandedCaseIds.has(medCase.id);
-                                const caseApps = getAppointmentsByCase(medCase.id);
+                                const caseApps = getAppointmentsForCase(medCase.id);
                                 const isActiveCase = selectedCase?.id === medCase.id;
 
                                 return (
@@ -172,16 +215,16 @@ export default function DashboardLayout({ role }: { role: UserRole }) {
                                         <button
                                             onClick={() => toggleCase(medCase.id)}
                                             className={`w-full text-left px-3 py-2.5 rounded-xl flex items-center gap-2.5 transition-all duration-200 relative ${isActiveCase
-                                                    ? 'bg-gradient-to-r from-brand-teal/10 to-brand-mint/10 dark:from-brand-teal/15 dark:to-brand-mint/5 shadow-sm'
-                                                    : 'hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                                                ? 'bg-gradient-to-r from-brand-teal/10 to-brand-mint/10 dark:from-brand-teal/15 dark:to-brand-mint/5 shadow-sm'
+                                                : 'hover:bg-slate-50 dark:hover:bg-slate-800/60'
                                                 }`}
                                         >
                                             <div className={`transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}>
                                                 <ChevronRight className={`w-3.5 h-3.5 ${isActiveCase ? 'text-brand-teal' : 'text-slate-400'}`} />
                                             </div>
                                             <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-base shrink-0 transition-all duration-200 ${isActiveCase
-                                                    ? 'bg-gradient-to-br from-brand-teal/20 to-brand-lime/20 shadow-sm'
-                                                    : 'bg-slate-100 dark:bg-slate-800 group-hover:bg-slate-200/80 dark:group-hover:bg-slate-700'
+                                                ? 'bg-gradient-to-br from-brand-teal/20 to-brand-lime/20 shadow-sm'
+                                                : 'bg-slate-100 dark:bg-slate-800 group-hover:bg-slate-200/80 dark:group-hover:bg-slate-700'
                                                 }`}>
                                                 {medCase.icon || ''}
                                             </div>
@@ -218,8 +261,8 @@ export default function DashboardLayout({ role }: { role: UserRole }) {
                                                             <div className={`w-2 h-2 rounded-full shrink-0 ${getAppStatusDot(app.status)} ${isSelected ? 'ring-2 ring-brand-teal/20' : ''}`} />
                                                             <div className="flex-1 min-w-0">
                                                                 <span className={`text-[13px] font-medium truncate block leading-tight ${isSelected
-                                                                        ? 'text-brand-teal dark:text-brand-lime'
-                                                                        : 'text-slate-600 dark:text-slate-400 group-hover/item:text-slate-800 dark:group-hover/item:text-slate-200'
+                                                                    ? 'text-brand-teal dark:text-brand-lime'
+                                                                    : 'text-slate-600 dark:text-slate-400 group-hover/item:text-slate-800 dark:group-hover/item:text-slate-200'
                                                                     }`}>
                                                                     {app.topic}
                                                                 </span>
@@ -235,7 +278,7 @@ export default function DashboardLayout({ role }: { role: UserRole }) {
                                     </div>
                                 );
                             })}
-                            {cases.length === 0 && (
+                            {cases.length === 0 && !isLoading && (
                                 <p className="text-xs text-center text-slate-400 py-4">No cases found</p>
                             )}
                         </div>
@@ -327,7 +370,7 @@ export default function DashboardLayout({ role }: { role: UserRole }) {
                     </header>
 
                     <div className="flex-1 overflow-auto p-6">
-                        <div className="max-w-5xl mx-auto h-full animate-in fade-in duration-300">
+                        <div className="h-full animate-in fade-in duration-300">
                             <Outlet />
                         </div>
                     </div>

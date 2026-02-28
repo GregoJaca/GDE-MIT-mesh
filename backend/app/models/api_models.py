@@ -38,6 +38,7 @@ class FinalizeRequest(BaseModel):
     encounter_date: str
     format_id: str = "fmt_001"
     edited_clinical_json: dict
+    patient_summary_md: Optional[str] = None
 
 class OrchestrationResponse(BaseModel):
     medical_report_pdf_url: str

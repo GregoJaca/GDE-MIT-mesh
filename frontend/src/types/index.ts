@@ -45,18 +45,16 @@ export interface PatientContext {
     context_documents: ContextDocument[];
 }
 
-// API response from the finalized consultation endpoint
+// API response from the finalized consultation endpoint (/finalize-report)
+// Matches OrchestrationResponse from the backend exactly.
 export interface ConsultationResult {
     medical_report_pdf_url: string;
     patient_summary_md: string;
     administrative_metadata: {
         patient_id: string;
-        patient_name: string;
-        patient_taj: string;
         doctor_id: string;
-        doctor_name: string;
-        doctor_seal: string;
         encounter_date: string;
+        format_id: string;
     };
 }
 
@@ -67,6 +65,7 @@ export interface ClinicalDraftJson {
     actionables: MedicationAction[];
 }
 
+// Full response from /generate-draft — includes enriched DB fields
 export interface DraftResponse {
     administrative_metadata: {
         patient_id: string;
@@ -76,6 +75,8 @@ export interface DraftResponse {
         doctor_name: string;
         doctor_seal: string;
         encounter_date: string;
+        context_documents?: unknown[];
+        available_doctor_categories?: unknown[];
     };
     patient_summary_md: string;
     clinical_draft_json: ClinicalDraftJson;
@@ -88,6 +89,7 @@ export interface FinalizeRequestPayload {
     encounter_date: string;
     format_id: string;
     edited_clinical_json: ClinicalDraftJson;
+    patient_summary_md?: string;
 }
 
 export interface ClinicalFinding {

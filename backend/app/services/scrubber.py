@@ -52,8 +52,9 @@ class ContentScrubber:
             
         # Convert dict to string, replace, convert back (fastest for JSON)
         data_str = json.dumps(data)
-        for token, original in token_map.items():
-            data_str = data_str.replace(token, original)
+        # Sort by length descending to avoid partial matches ([PERSON_10] vs [PERSON_1])
+        for token in sorted(token_map.keys(), key=len, reverse=True):
+            data_str = data_str.replace(token, token_map[token])
         return json.loads(data_str)
 
 scrubber = ContentScrubber()

@@ -1,7 +1,7 @@
 // API service layer for consultation/transcription endpoints.
 
 import { APP_CONFIG } from '@/config/app.config';
-import type { ConsultationResult, PatientContext } from '@/types';
+import type { PatientContext } from '@/types';
 
 export interface DraftPayload {
     patientContext: PatientContext;
@@ -19,7 +19,7 @@ export async function generateDraft(payload: DraftPayload): Promise<import('@/ty
     formData.append('language', payload.language);
     formData.append('audio', payload.audio, 'consultation.webm');
 
-    const res = await fetch('http://localhost:8000/api/v1/generate-draft', {
+    const res = await fetch(`${APP_CONFIG.API.BASE_URL}/generate-draft`, {
         method: 'POST',
         body: formData,
     });
@@ -32,7 +32,7 @@ export async function generateDraft(payload: DraftPayload): Promise<import('@/ty
 }
 
 export async function finalizeReport(payload: import('@/types').FinalizeRequestPayload): Promise<import('@/types').ConsultationResult> {
-    const res = await fetch('http://localhost:8000/api/v1/finalize-report', {
+    const res = await fetch(`${APP_CONFIG.API.BASE_URL}/finalize-report`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',

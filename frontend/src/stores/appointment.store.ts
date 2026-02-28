@@ -1,46 +1,54 @@
-// In-memory appointment store with mutators.
-// Provides data access helpers used across the app.
-// In a production system, this would be replaced by a server-side store.
+// API-backed appointment store.
+// Fetches cases and appointments from the backend database.
 
-import { MOCK_APPOINTMENTS, MOCK_CASES } from '@/config/mock-fixtures';
-import type { Patient } from '@/types';
+import { APP_CONFIG } from '@/config/app.config';
+import type { Appointment, MedicalCase, Patient, MedicationAction } from '@/types';
 
-// In-memory patient list — populated by the patient service on first load
+const API_BASE = APP_CONFIG.API.BASE_URL;
+
+// ---- Patient cache ----
 let _patients: Patient[] = [];
 export function setPatientCache(patients: Patient[]): void { _patients = patients; }
 export function getPatientById(id: string): Patient | undefined { return _patients.find((p) => p.id === id); }
 
-import type { Appointment, MedicalCase, MedicationAction } from '@/types';
+// ---- API fetch functions ----
 
-// Internal mutable arrays seeded from mock fixtures
-const appointments: Appointment[] = [...MOCK_APPOINTMENTS];
-const medicalCases: MedicalCase[] = [...MOCK_CASES];
-
-// --- Query helpers ---
-
-export function getAppointmentsByPatient(patientId: string): Appointment[] {
-    return appointments
-        .filter((a) => a.patientId === patientId)
-        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+export async function fetchCasesByPatient(patientId: string): Promise<MedicalCase[]> {
+    const res = await fetch(`${API_BASE}/cases/${patientId}`);
+    if (!res.ok) return [];
+    return res.json();
 }
 
+export async function fetchAppointmentsByCase(caseId: string): Promise<Appointment[]> {
+    const res = await fetch(`${API_BASE}/appointments/${caseId}`);
+    if (!res.ok) return [];
+    return res.json();
+}
+
+// ---- In-memory cache for fast lookups (populated after API fetch) ----
+let _cases: MedicalCase[] = [];
+let _appointments: Appointment[] = [];
+
+export function setCasesCache(cases: MedicalCase[]): void { _cases = cases; }
+export function setAppointmentsCache(appointments: Appointment[]): void { _appointments = appointments; }
+
 export function getCasesByPatient(patientId: string): MedicalCase[] {
-    return medicalCases
+    return _cases
         .filter((c) => c.patientId === patientId)
         .sort((a, b) => new Date(b.createdDate).getTime() - new Date(a.createdDate).getTime());
 }
 
 export function getAppointmentsByCase(caseId: string): Appointment[] {
-    return appointments
+    return _appointments
         .filter((a) => a.caseId === caseId)
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 }
 
 export function getCaseById(caseId: string): MedicalCase | undefined {
-    return medicalCases.find((c) => c.id === caseId);
+    return _cases.find((c) => c.id === caseId);
 }
 
-// --- Mutators ---
+// ---- Mutators ----
 
 export function updateAppointmentReport(
     id: string,
@@ -48,10 +56,10 @@ export function updateAppointmentReport(
     newSummary?: string,
     newActionables?: MedicationAction[]
 ): void {
-    const idx = appointments.findIndex((a) => a.id === id);
+    const idx = _appointments.findIndex((a) => a.id === id);
     if (idx !== -1) {
-        appointments[idx] = {
-            ...appointments[idx],
+        _appointments[idx] = {
+            ..._appointments[idx],
             report: newReport,
             ...(newSummary ? { patientSummary: newSummary } : {}),
             ...(newActionables ? { actionables: newActionables } : {}),

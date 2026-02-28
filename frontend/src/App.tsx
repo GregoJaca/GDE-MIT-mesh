@@ -18,6 +18,10 @@ export default function App() {
                     <Route index element={<DoctorDashboard />} />
                 </Route>
 
+                {/* Prevent 404 static assets from triggering SPA redirect to Login */}
+                <Route path="/reports/*" element={<div className="p-8 text-center text-slate-500">Report not found (404)</div>} />
+                <Route path="/outputs/*" element={<div className="p-8 text-center text-slate-500">Output not found (404)</div>} />
+
                 <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
         </BrowserRouter>

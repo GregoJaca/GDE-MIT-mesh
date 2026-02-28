@@ -5,6 +5,8 @@ cleanup() {
     echo "Stopping Mesh End-to-End System..."
     # Suppress output if processes are already dead
     kill $BACKEND_PID $FRONTEND_PID 2>/dev/null
+    pkill -f "uvicorn app.main:app" 2>/dev/null
+    pkill -f "vite" 2>/dev/null
     exit
 }
 
@@ -38,7 +40,7 @@ BACKEND_PID=$!
 sleep 1.5
 
 echo "[3/3] Starting Vite React Frontend..."
-cd ..
+cd ../frontend
 npm run dev &
 FRONTEND_PID=$!
 

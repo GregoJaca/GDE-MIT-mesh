@@ -1,6 +1,5 @@
-import React from 'react';
 import { FileEdit, Info, CheckCircle2 } from 'lucide-react';
-import type { ClinicalDraftJson, ClinicalFinding, MedicationAction } from '@/types';
+import type { ClinicalDraftJson } from '@/types';
 import EesztMarkdown from '@/components/shared/EesztMarkdown';
 
 interface DraftReviewFormProps {

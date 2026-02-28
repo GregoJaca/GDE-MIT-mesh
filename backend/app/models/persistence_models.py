@@ -87,3 +87,36 @@ class EBeutalo(Base):
     status = Column(String) # Used, Available
     
     patient = relationship("Patient", back_populates="referrals")
+
+class MedicalCaseModel(Base):
+    """Clinical Cases grouping appointments"""
+    __tablename__ = "medical_cases"
+
+    id = Column(String, primary_key=True, index=True)
+    patient_id = Column(String, ForeignKey("patients.id"))
+    title = Column(String)
+    description = Column(Text, nullable=True)
+    status = Column(String, default="Active")  # Active | Closed
+    created_date = Column(Date)
+    icon = Column(String, nullable=True, default="")
+
+    patient = relationship("Patient")
+    appointments = relationship("AppointmentModel", back_populates="case")
+
+class AppointmentModel(Base):
+    """Individual appointment/visit within a case"""
+    __tablename__ = "appointments"
+
+    id = Column(String, primary_key=True, index=True)
+    patient_id = Column(String, ForeignKey("patients.id"))
+    case_id = Column(String, ForeignKey("medical_cases.id"))
+    date = Column(Date)
+    topic = Column(String)
+    doctor_id = Column(String, ForeignKey("doctors.id"), nullable=True)
+    status = Column(String, default="Pending")  # Completed | Pending | Review Required
+    report = Column(Text, nullable=True, default="")
+    patient_summary = Column(Text, nullable=True, default="")
+
+    patient = relationship("Patient")
+    case = relationship("MedicalCaseModel", back_populates="appointments")
+

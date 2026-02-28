@@ -101,36 +101,8 @@ export const MOCK_APPOINTMENTS: Appointment[] = [
     },
 ];
 
-// Pre-seeded report PDF entries (mock static reports)
-export const MOCK_REPORT_PDFS: Record<string, { title: string; date: string; provider: string; pdfUrl: string }> = {
-    'APP-001': {
-        title: 'Annual Physical — Clinical Report',
-        date: '2023-10-14',
-        provider: 'Dr. Amelia Brooks',
-        pdfUrl: '/reports/tetelsor.pdf',
-    },
-    'APP-002': {
-        title: 'Lab Results Review — Lipid Panel & Metabolic',
-        date: '2023-11-05',
-        provider: 'Dr. Amelia Brooks',
-        pdfUrl: '/reports/tetelsor.pdf',
-    },
-    'APP-003': {
-        title: 'Dermatology Consult — Lesion Evaluation',
-        date: '2024-02-28',
-        provider: 'Dr. James Liu',
-        pdfUrl: '/reports/tetelsor.pdf',
-    },
-    'APP-004': {
-        title: 'Orthopedic Evaluation — Right Knee',
-        date: '2024-01-15',
-        provider: 'Dr. Helena Vasquez',
-        pdfUrl: '/reports/tetelsor.pdf',
-    },
-    'APP-005': {
-        title: 'Neurology — Migraine Follow-up',
-        date: '2024-02-10',
-        provider: 'Dr. Raj Patel',
-        pdfUrl: '/reports/tetelsor.pdf',
-    },
-};
+// Pre-seeded report PDF entries.
+// Empty by default — reports are generated dynamically by the AI pipeline.
+// The ReportViewer will show a clean empty state when no PDF has been generated yet.
+export const MOCK_REPORT_PDFS: Record<string, { title: string; date: string; provider: string; pdfUrl: string }> = {};
+

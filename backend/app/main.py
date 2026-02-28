@@ -13,7 +13,7 @@ from app.services.db_service import DBService
 from app.models.api_models import EncounterMetadata, OrchestrationResponse, DraftResponse, FinalizeRequest, ConsultationRequest
 from app.services.pipeline import ZeroHallucinationPipeline
 from app.services.orchestrator import OrchestratorService
-from app.models.persistence_models import Patient, EHRDocument
+from app.models.persistence_models import Patient, EHRDocument, MedicalCaseModel, AppointmentModel, Doctor
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("api")
@@ -98,19 +98,24 @@ async def generate_draft(
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/v1/finalize-report", response_model=OrchestrationResponse)
-async def finalize_report(request: FinalizeRequest):
+async def finalize_report(request: FinalizeRequest, db: Session = Depends(get_db)):
     try:
-        # Reconstruct the metadata payload
+        # Fetch patient and doctor from DB via proper dependency injection
+        patient = db.query(Patient).filter(Patient.id == request.patient_id).first()
+        doctor = db.query(Doctor).filter(Doctor.id == request.doctor_id).first()
+
         full_metadata = {
             "patient_id": request.patient_id,
-            "patient_name": "Unknown", # we can fix this if needed, or pass it from frontend
-            "patient_taj": "Unknown",
-            "doctor_name": "Unknown",
+            "patient_name": patient.name if patient else "Unknown",
+            "patient_taj": patient.taj if patient else "Unknown",
+            "doctor_id": request.doctor_id,
+            "doctor_name": doctor.name if doctor else "Unknown",
+            "doctor_seal": doctor.seal_number if doctor else "N/A",
             "encounter_date": request.encounter_date
         }
         
-        # We need the patient dictionary layout for the complete_consultation
-        hydrated_patient = {"layman_explanation": "Finalized document."}
+        # Pass through the patient summary from the draft stage (no re-inference)
+        hydrated_patient = {"layman_explanation": request.patient_summary_md or "Finalized document."}
         
         pdf_path, summary_md_path = state.orchestrator.complete_consultation(
             hydrated_clinical=request.edited_clinical_json,
@@ -121,7 +126,7 @@ async def finalize_report(request: FinalizeRequest):
         
         return OrchestrationResponse(
             medical_report_pdf_url=f"/outputs/{pdf_path.split('/')[-1]}",
-            patient_summary_md="Finalized",
+            patient_summary_md=request.patient_summary_md or "Finalized",
             administrative_metadata={
                 "patient_id": request.patient_id,
                 "doctor_id": request.doctor_id,
@@ -166,20 +171,63 @@ async def test_generate_consultation(
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/v1/eeszt/patients")
-async def get_patients(db: Session = Depends(get_db)):
+async def get_eeszt_patients(db: Session = Depends(get_db)):
     patients = db.query(Patient).all()
     return [{"id": p.id, "name": p.name} for p in patients]
 
 @app.get("/api/v1/eeszt/context/{patient_id}")
 async def get_patient_context(patient_id: str, db: Session = Depends(get_db)):
+    patient = db.query(Patient).filter(Patient.id == patient_id).first()
+    if not patient:
+        raise HTTPException(status_code=404, detail=f"Patient {patient_id} not found")
     docs = db.query(EHRDocument).filter(EHRDocument.patient_id == patient_id).all()
+    return {
+        "patient": {
+            "id": patient.id,
+            "name": patient.name,
+            "taj": patient.taj,
+            "age": 0,
+            "gender": "Unknown"
+        },
+        "context_documents": [
+            {
+                "system_doc_id": d.id,
+                "document_type": d.doc_type,
+                "content_summary": d.content
+            } for d in docs
+        ]
+    }
+
+@app.get("/api/v1/cases/{patient_id}")
+async def get_cases_by_patient(patient_id: str, db: Session = Depends(get_db)):
+    cases = db.query(MedicalCaseModel).filter(MedicalCaseModel.patient_id == patient_id).all()
     return [
         {
-            "id": d.id,
-            "type": d.doc_type,
-            "date": d.date.isoformat(),
-            "content": d.content
-        } for d in docs
+            "id": c.id,
+            "patientId": c.patient_id,
+            "title": c.title,
+            "description": c.description or "",
+            "status": c.status,
+            "createdDate": c.created_date.isoformat(),
+            "icon": c.icon or ""
+        } for c in cases
+    ]
+
+@app.get("/api/v1/appointments/{case_id}")
+async def get_appointments_by_case(case_id: str, db: Session = Depends(get_db)):
+    apps = db.query(AppointmentModel).filter(AppointmentModel.case_id == case_id).all()
+    return [
+        {
+            "id": a.id,
+            "patientId": a.patient_id,
+            "caseId": a.case_id,
+            "date": a.date.isoformat(),
+            "topic": a.topic,
+            "doctorId": a.doctor_id or "",
+            "status": a.status,
+            "report": a.report or "",
+            "patientSummary": a.patient_summary or ""
+        } for a in apps
     ]
 
 if __name__ == "__main__":
