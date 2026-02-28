@@ -433,10 +433,12 @@ export default function DoctorDashboard() {
                             <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400 mb-1.5">
                                 EHR Context — {patientContext.context_documents.length} records loaded
                             </p>
-                            <div className="flex flex-wrap gap-x-3 gap-y-0.5">
+                            <div className="flex flex-wrap gap-2 mt-2 mb-1">
                                 {patientContext.context_documents.map(d => (
-                                    <span key={d.system_doc_id} className="text-[10px] font-mono text-zinc-400">
-                                        {d.system_doc_id} · {d.document_type}
+                                    <span key={d.system_doc_id} className="inline-flex items-center px-2.5 py-1 border border-zinc-900 rounded-md text-[10px] font-mono text-zinc-700 bg-white shadow-sm">
+                                        <span className="font-bold text-zinc-900 mr-1.5">{d.system_doc_id}</span>
+                                        <span className="text-zinc-300 mr-1.5">|</span>
+                                        <span className="text-zinc-500">{d.document_type}</span>
                                     </span>
                                 ))}
                             </div>
