@@ -55,128 +55,51 @@ The core challenge is linking a spoken phrase (like *"my lab results from last T
 
 The Mesh API enforces a strict Pydantic-validated contract. All timestamps follow ISO 8601.
 
-#### Request Schema: `POST /api/v1/generate-consultation`
+#### Request Schema: `POST /api/v1/generate-consultation` (Multipart Form-Data)
 
 | Field | Type | Constraint | Description |
 | :--- | :--- | :--- | :--- |
-| **`metadata`** | `object` | Required | Historical context & administrative data. |
-| ↳ `patient_id` | `string` | Min: 2, Max: 50 | Unique system identifier for the patient. |
-| ↳ `patient_name` | `string` | Min: 2, Max: 200 | Full legal name for hydration. |
-| ↳ `patient_taj` | `string` | `^\d{3}-\d{3}-\d{3}$` | Hungarian Healthcare ID (TAJ). |
-| ↳ `doctor_id` | `string` | Min: 2, Max: 50 | Healthcare provider identifier. |
-| ↳ `doctor_name` | `string` | Min: 2, Max: 200 | Reporting physician's name. |
-| ↳ `doctor_seal` | `string` | Min: 2, Max: 50 | Official medical seal/license number. |
-| ↳ `encounter_date` | `string` | ISO 8601 | Current visit timestamp (UTC). |
-| ↳ `context_documents` | `array` | Max: 50 items | List of past records available for semantic mapping. |
-| ↳ `available_doctors` | `array` | list | List of candidate providers for follow-up referrals. |
-| **`transcript`** | `string` | 10 - 100k chars | Verbatim audio transcript text (unscrubbed). |
+| **`patient_id`** | `string` | Required | Unique system identifier for the patient. Used to fetch DB context. |
+| **`doctor_id`** | `string` | Required | Healthcare provider identifier. Used for referral mapping. |
+| **`encounter_date`** | `string` | ISO 8601 | Current visit timestamp (UTC). |
+| **`format_id`** | `string` | Default: `fmt_001` | Report format ID. |
+| **`audio`** | `File` | Required | Audio dictation file (`.wav`, `.webm`, etc.). Automatically transcoded to 16kHz WAV. |
 
-#### Response Schema: `FinalReportResponse`
+#### Response Schema: `OrchestrationResponse` (JSON)
 
 | Field | Type | Description |
 | :--- | :--- | :--- |
-| **`administrative_metadata`** | `object` | Mirror of input metadata, hydrated with original PII values. |
-| **`clinical_report`** | `object` | Highly structured, validated clinical findings (`DiagnosticResult`). |
-| ↳ `chief_complaints` | `array` | Symptomatic reasons for the current visit. |
-| ↳ `assessments` | `array` | Clinical findings mapping to transcripts or past documents. |
-| ↳ `actionables` | `array` | Instructions/referrals (`ActionableItem`). |
-| **`patient_summary`** | `object` | Human-readable translation for the patient portal. |
-| ↳ `layman_explanation` | `string` | Non-technical summary of the encounter. |
-| ↳ `actionables` | `array` | Clear patient-facing steps mirrored from the clinical report. |
-
-#### Shared Component: `DiagnosticResult` / `ActionableItem`
-
-- **`finding` / `description`**: Verbatim clinical discovery or next step.
-- **`condition_status`**: `enum` ["CONFIRMED", "NEGATED", "SUSPECTED", "UNKNOWN"]
-- **`subject`**: `enum` ["PATIENT", "FAMILY_MEMBER"]
-- **`action_type`**: `enum` ["PHARMACY_PICKUP", "FOLLOW_UP_APPT", "LIFESTYLE_CHANGE", "LAB_TEST", "OTHER"]
-- **`system_reference_id`**: Opaque ID mapping back to `system_doc_id` or `doctor_id`.
-- **`exact_quote`**: Verbatim 1-4 word substring from the source transcript (Proof-of-Work).
+| **`medical_report_pdf_url`** | `string` | URL to the statically served PDF medical report. |
+| **`patient_summary_md`** | `string` | Human-readable layman explanation in Markdown format. |
+| **`administrative_metadata`** | `object` | Mirror of input metadata. |
 
 ---
 
 #### Endpoint: `POST /api/v1/generate-consultation`
 
-**Request Body Example:**
-```json
-{
-  "metadata": {
-    "patient_id": "P-88421",
-    "patient_taj": "111-222-333",
-    "encounter_date": "2026-02-27T10:00:00Z",
-    "context_documents": [
-      {
-        "type": "laboratory_result",
-        "system_doc_id": "DOC-99281-XYZ",
-        "date": "2026-02-20"
-      },
-      {
-         "type": "surgical_note",
-         "system_doc_id": "DOC-55555-ABC",
-         "date": "2025-12-14"
-      }
-    ]
-  },
-  "transcript": "Okay, I see from your laboratory result that your cholesterol is slightly elevated..."
-}
+**Request Example (using `curl`):**
+```bash
+curl -X POST "http://localhost:8000/api/v1/generate-consultation" \
+  -F "patient_id=P-001" \
+  -F "doctor_id=D-99" \
+  -F "encounter_date=2026-02-28T10:00:00Z" \
+  -F "format_id=fmt_001" \
+  -F "audio=@/path/to/recording.wav"
 ```
 
-#### Deterministic Response Payload Output
+#### API Response Payload Output
 ```json
 {
+  "medical_report_pdf_url": "/outputs/medical_report_P-001.pdf",
+  "patient_summary_md": "# Patient Summary: Jean-Pierre de La-Fontaine\n\nYour visit today...",
   "administrative_metadata": {
-    "patient_id": "P-10101",
-    "patient_name": "Jane Doe",
-    "patient_taj": "123-456-789",
-    "doctor_id": "D-4099",
-    "doctor_name": "Dr. Smith",
-    "doctor_seal": "S-14399",
-    "encounter_date": "2026-02-27T10:00:00Z"
-  },
-  "clinical_report": {
-    "chief_complaints": [],
-    "assessments": [
-      {
-        "finding": "Elevated Cholesterol",
-        "condition_status": "CONFIRMED",
-        "subject": "PATIENT",
-        "exact_quote": "cholesterol is slightly elevated",
-        "contextual_quote": "latest lab results last week that your cholesterol is slightly elevated.",
-        "system_reference_id": "DOC-99281-XYZ" 
-      }
-    ],
-    "actionables": [
-      {
-         "action_type": "FOLLOW_UP_APPT",
-         "description": "Schedule a cardiology follow-up with Dr. Sarah Miller.",
-         "timeframe": "Next Thursday",
-         "system_reference_id": "SPEC-01",
-         "exact_quote": "Dr. Sarah Miller"
-      }
-    ]
-  },
-  "patient_summary": {
-    "layman_explanation": "Jane, we reviewed your recent laboratory tests and found your cholesterol is slightly high. The good news is you are recovering well from your hospital stay last November.",
-    "actionables": [
-       {
-         "action_type": "FOLLOW_UP_APPT",
-         "description": "Please schedule your next appointment to monitor your cholesterol levels.",
-         "timeframe": "Next month",
-         "system_reference_id": null,
-         "exact_quote": "follow-up appointment for next month",
-         "contextual_quote": "Let's schedule a follow-up appointment for next month to re-check."
-       }
-    ]
+    "patient_id": "P-001",
+    "doctor_id": "D-99",
+    "encounter_date": "2026-02-28T10:00:00Z",
+    "format_id": "fmt_001"
   }
 }
 ```
-
-### Constraints Enforcement
-To ensure LLM compliance, string literals are strictly constrained to Enums:
-- **`condition_status`**: `["CONFIRMED", "NEGATED", "SUSPECTED", "UNKNOWN"]`
-- **`subject`**: `["PATIENT", "FAMILY_MEMBER"]`
-- **`action_type`**: `["PHARMACY_PICKUP", "FOLLOW_UP_APPT", "LIFESTYLE_CHANGE", "LAB_TEST", "OTHER"]`
-
 ---
 
 ## 3. Environment & Deployment
@@ -201,11 +124,10 @@ AZURE_OPENAI_DEPLOYMENT_NAME=gpt-5.2
 
 ### Execution
 ```bash
-# Executing strictly inside the lockfile sandbox
-uv run python main.py
+# Executing from the root of the project to boot the Database, API, and Frontend concurrently:
+../start.sh
 ```
-> Server spins up via `uvicorn` on `localhost:8000`. Hot-reloading enabled.
-
+> Server spins up via `uvicorn` on `localhost:8000`. Fast/automatic conversion to `.wav` requires `ffmpeg` installed on the system.
 ### Verification
 ```bash
 # Execute functional schemas and pipeline validation
