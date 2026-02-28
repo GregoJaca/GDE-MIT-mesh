@@ -1,4 +1,4 @@
-site_name: Mesh
+site_name: Echo - Medical AI Companion
 site_description: Ambient Clinical Intelligence + Zero-Hallucination
 site_url: https://gregojaca.github.io/GDE-MIT-mesh/
 repo_url: https://github.com/GregoJaca/GDE-MIT-mesh/
@@ -20,6 +20,9 @@ theme:
     - toc.integrate
     - content.code.copy
     - content.code.annotate
+
+extra_css:
+  - stylesheets/extra.css
 
 plugins:
   - search

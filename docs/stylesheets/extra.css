@@ -1,0 +1,54 @@
+:root {
+  --md-primary-fg-color: #000000;
+  --md-primary-bg-color: #ffffff;
+  --md-accent-fg-color: #000000;
+  --md-typeset-a-color: #000000;
+  --md-typeset-color: #111111;
+  --md-text-font: "Inter", sans-serif;
+  --md-code-font: "Fira Code", monospace;
+
+  /* Flatten UI / Minimalist */
+  --md-shadow-z1: none;
+  --md-shadow-z2: none;
+  --md-shadow-z3: none;
+
+  --md-typeset-table-color: rgba(0,0,0,0.12);
+  --md-code-bg-color: #f5f5f5;
+  --md-code-fg-color: #000000;
+}
+
+body {
+  letter-spacing: -0.01em;
+}
+
+/* Crisp squared off layout mapping */
+.md-button, .md-typeset .admonition, .md-typeset details, .md-typeset pre>code {
+  border-radius: 0px !important;
+  border: 1px solid #e0e0e0;
+}
+
+.md-header {
+  box-shadow: none !important;
+  border-bottom: 1px solid #e0e0e0;
+  background-color: #ffffff;
+  color: #000000;
+}
+
+.md-header__button.md-logo img, .md-header__button.md-logo svg {
+  fill: #000000;
+}
+
+.md-tabs {
+  background-color: #ffffff;
+  border-bottom: 1px solid #e0e0e0;
+  color: #000000;
+}
+
+.md-nav__item .md-nav__link--active {
+  color: #000000 !important;
+  font-weight: 600;
+}
+
+.mermaid {
+  background: transparent !important;
+}

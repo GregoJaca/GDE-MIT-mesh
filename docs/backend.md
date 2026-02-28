@@ -1,57 +1,53 @@
-# The Backend Pipeline: FastAPI & Orchestration
+# Backend Pipeline
 
-The Mesh backend is a high-performance **FastAPI** service written in Python 3.10+, utilizing **SQLAlchemy** for persistence and **LangChain** for LLM orchestration.
+Echo is powered by an edge-optimized **FastAPI** Python architecture. We use **SQLAlchemy** for data persistence and **LangChain** for orchestrating complex LLM pipelines utilizing **GPT-5.2**.
 
-## Core Endpoints
+## Pipeline Execution
 
-The system exposes two primary endpoints designed to support the Human-in-the-Loop Zero-Hallucination architecture.
+The system explicitly decouples AI extraction from database commitment, enforcing our Zero-Hallucination strategy by ensuring a physician reviews all output.
 
-### `POST /api/v1/generate-draft`
-This is the entry point for the ambient audio recording. 
+### 1. `POST /api/v1/generate-draft`
+This is the core execution endpoint handling the ambient audio.
+- Takes the raw binary audio blob.
+- Connects to the transcription engine.
+- Pulls Opaque Pointers from the database via `db_service.py`.
+- Dispatches to LangChain and GPT-5.2, strictly enforcing Pydantic models.
+- Returns an aggregated dictionary to the client without executing any database mutations.
 
-1. **Ingestion**: Accepts `multipart/form-data` containing the raw `.webm` or `.wav` audio `Blob`.
-2. **Transcription**: Pushed out asynchronously to either a local Whisper instance or Anyscale/OpenAI Whisper endpoints.
-3. **Context Hydration**: The `patientId` triggers a database lookup via `db_service.py` to retrieve EESZT pointers.
-4. **Draft Generation**: Instead of saving directly to the DB, the Orchestrator returns the strictly-typed `ClinicalDraftJson`, the `patient_summary_md`, and the `actionables` array straight to the client.
+### 2. `POST /api/v1/finalize-report`
+This is the commit endpoint.
+- Accepts the physician-audited JSON structure.
+- Renders the structured data into a pristine, hospital-grade PDF via heavily optimized HTML-to-PDF pipelining.
+- Formalizes the database relationships, saving the PDF trajectory and Markdown blobs to the patient history.
 
-### `POST /api/v1/finalize-report`
-This endpoint commits the doctor's reviewed facts to the system of record.
+## Intelligence Orchestration
 
-1. **Ingestion**: Accepts the JSON payload directly from the Doctor Dashboard review screen.
-2. **PDF Compilation**: Under the hood, we use `wkhtmltopdf` combined with a beautiful HTML Jinja template (`app/templates/report.html`) to render the formal hospital EMR document.
-3. **Storage**: Both the Markdown patient summary and the PDF URL are saved to the SQLite database via SQLAlchemy schemas.
-
-## The Orchestrator (`app/services/orchestrator.py`)
-
-The true intelligence of Mesh lies in the orchestration layer. 
+Inside `app/services/orchestrator.py`, the AI logic operates purely functionally:
 
 ```python
 async def generate_draft(
     audio: UploadFile,
     patient_id: str,
     doctor_id: str,
-    date: str,
-    language: str,
-    fallback_transcript: Optional[str] = None
+    language: str
 ) -> DraftResponse:
-    # 1. Transcribe the audio
+    # Transcribe the audio chunk
     transcript_text = await transcribe_audio(audio)
     
-    # 2. Fetch the "Opaque Pointers" from the DB
+    # Retrieve EESZT compliance pointers
     patient_context_str = fetch_patient_context_str(patient_id)
     
-    # 3. Extract the Structured Data (Pydantic Schema Enforced)
+    # Extract Strict Pydantic Data Matrix via GPT-5.2
     clinical_dict = generate_extraction_data(transcript_text, patient_context_str)
     
-    # 4. Generate the layman's Patient Summary
+    # Generate Multilingual Patient Output
     patient_summary_md = generate_patient_summary(
         transcript=transcript_text, 
         clinical_dict=clinical_dict, 
-        patient_context=patient_context_str,
         language=language
     )
     
     return DraftResponse(...)
 ```
 
-By decoupling extraction from finalization, Mesh guarantees that no AI artifact ever enters the patient's legal medical record without explicit human sign-off.
+The strictness of this orchestrator code prevents silent errors and ensures the API response boundary is always identical across every consultation.

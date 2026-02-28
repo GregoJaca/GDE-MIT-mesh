@@ -1,43 +1,32 @@
-# EESZT Integration: The "Opaque Pointer" Pattern
+# Security: EESZT Integration
 
-Handling historical health records presents a severe security and privacy bottleneck. To generate an accurate summary, an AI theoretically needs the complete medical history of the patient. However, extracting entire EESZT (Elektronikus Egészségügyi Szolgáltatási Tér) logs and piping them into an LLM context window exposes hospitals to massive HIPAA/GDPR liabilities. 
+Standard AI companions demand massive context windows to understand a patient's history. Passing entire national logs (like the Hungarian EESZT) into a third-party LLM introduces enormous compliance and data leakage risks.
 
-**Mesh circumvents this via the "Opaque Pointer" Pattern.**
+**Echo - Medical AI Companion solves this entirely via the Opaque Pointer Pattern.**
 
-## How It Works
+## Opaque Pointers
 
-1. **Database Seed:** The Mesh database does *not* store the full text of a patient's historical medical records. It only stores high-level, anonymized metadata alongside a generic `system_reference_id` (e.g., `DOC-DERM-001`, representing a previous Dermatology consult).
-2. **Context Injection:** When the Doctor opens "Jane Doe's" profile, the backend fetches Jane's available document pointers and secretly prepends them to the LLM's system prompt.
-   * *Example Injection:* `"Patient has the following historical records available in EESZT: [DOC-DERM-001 - 2024-05-12 - Dermatology Consult]"`
-3. **Semantic Matching:** During the live consultation, the doctor says: *"I saw your dermatology consult from May..."*.
-4. **Extraction:** The LLM, instructed to look for correlations, realizes the spoken text matches the injected metadata. It outputs an `actionable` or `summary_bullet` that embeds the pointer.
+Instead of ingesting raw medical histories, Echo operates exclusively on metadata.
 
-## Markdown Rendering (Frontend)
+1. **Lightweight Seeding:** The backend database stores only high-level anonymized metadata and generic `system_reference_id` strings (e.g., `DOC-RAD-202` for an active radiology exam).
+2. **Contextual Injection:** When a doctor opens a patient file, the LLM system prompt is injected with a map of these pointers. For example: `[DOC-RAD-202: 2024-05-12 X-Ray]`.
+3. **Semantic Correlation:** During the clinical conversation, if the doctor references "your recent X-ray," GPT-5.2 automatically recognizes the correlation and embeds the pointer into the generated action plan.
 
-The true magic happens on the patient's device. 
+## The Patient Experience
 
-The API returns the Patient Summary in Markdown format, peppered with our custom syntax: 
-`Your [DOC-DERM-001] was reviewed today...`
+The backend returns the patient's summary formatted in Markdown, preserving these pointers. 
 
-The React Frontend utilizes a custom `<EesztMarkdown />` component. This component intercepts any bracketed document ID and transforms it into a functional, styled hyperlink:
+The React frontend utilizes a custom UI parser (`<EesztMarkdown />`) that transforms any bracketed EESZT ID into a sealed, secure portal hyperlink.
 
 ```tsx
-// frontend/src/components/shared/EesztMarkdown.tsx
 const renderLink = (id: string, text: string) => (
-    <a 
-      href={`https://eeszt.gov.hu/link/${id}`} 
-      target="_blank" 
-      rel="noopener noreferrer"
-      className="inline-flex items-center gap-1 font-mono text-xs..."
-    >
-      <Link className="w-3 h-3" />
+    <a href={`https://eeszt.gov.hu/link/${id}`} target="_blank">
+      <LinkIcon className="w-3 h-3" />
       {text || id}
     </a>
 );
 ```
 
-### The Result
-The patient sees a beautiful, blue button: `[View Dermatology Consult in EESZT]`. 
-When they click it, they are routed completely out of the Mesh ecosystem and into the secure Hungarian government portal, where they authenticate securely to view the highly sensitive file.
+When the patient reads their Echo summary on their device, they see clear, styled buttons mapping directly to their national health records. 
 
-**PII is never leaked, never stored, and never digested by the LLM.**
+When clicked, the user leaves the Echo application and handles authentication (Ügyfélkapu) securely on the government server. Protected data remains entirely unread by our internal systems.

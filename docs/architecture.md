@@ -1,56 +1,53 @@
-# System Architecture: The Zero-Hallucination Engine
+# Architecture: Zero-Hallucination Engine
 
-Mesh’s primary backend engineering objective is to turn fuzzy, unstructured human dialogue into deterministic, safely typable database records. We achieve this through a process known as **Schema-Enforced Extraction**, wrapped in an audit layer.
+Echo's paramount engineering directive is absolute factual accuracy. We transform noisy human dialogue into deterministic, database-safe records. This is achieved via our **Schema-Enforced Extraction** pipeline, powered by **GPT-5.2**.
 
-## The Data Flow
+## Pipeline Flow
 
 ```mermaid
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#ffffff', 'primaryBorderColor': '#000000', 'primaryTextColor': '#000000', 'lineColor': '#000000', 'secondaryColor': '#ffffff', 'tertiaryColor': '#ffffff'}}}%%
 graph TD
-    A[Doctor records Audio via Browser MediaRecorder] --> B(POST /api/v1/generate-draft)
-    B --> C{OpenAI Whisper}
-    C -->|Transcript String| D[PII Scrubber]
-    D --> E[LangChain / OpenAI gpt-4o-mini]
-    E -->|Structured JSON Extraction| F(Schema Validation via Pydantic)
-    F -->|Validation Passed| G[Draft Response sent to Frontend]
+    A[Doctor Browser: MediaRecorder / Audio Blob] -->|POST /api/v1/generate-draft| B(Backend Ingestion)
+    B --> C{Speech-to-Text Transcription}
+    C -->|Raw Transcript String| D[PII Scrubbing Layer]
+    D --> E[LangChain + GPT-5.2]
     
-    G --> H((Doctor Edits & Approves via UI))
+    subgraph Zero-Hallucination Enforcement
+        E -->|Attempt Extraction| F(Pydantic Schema Validator)
+        F -- Fails Validation (No exact quote match) --> E
+        F -- Passes Validation --> G[Strict Clinical JSON]
+    end
     
-    H --> I(POST /api/v1/finalize-report)
-    I --> J[Generate Patient Markdown]
-    I --> K[Generate Hospital PDF via wkhtmltopdf]
-    K --> L((Saved to DB))
+    G --> H[Frontend: Doctor Review & Audit]
+    H -->|POST /api/v1/finalize-report| I(Finalizing Engine)
+    
+    I --> J[Hospital EMR Representation]
+    I --> K[Patient App Summary Payload]
 ```
 
-## Pydantic Core
+## Implementing Zero-Hallucination
 
-We utilize `pydantic` to enforce the shape of the LLM output. OpenAI's function-calling mechanics natively support this. By refusing to let the LLM reply with a raw string, we strip away its ability to use "filler" vocabulary.
+Traditional LLMs generate tokens probabilistically. We bypass this by forcing **GPT-5.2** to call internal tools structured by `pydantic`. The model is stripped of its ability to use "filler" or "generative" vocabulary.
 
 ```python
-# From backend/app/models/llm_schemas.py
+# snippet from backend/app/models/llm_schemas.py
 class ClinicalDraftJson(BaseModel):
     chief_complaints: List[ClinicalFinding] = Field(
-        ..., description="List of the patient's primary reasons for the visit."
+        ..., description="Patient's primary reasons for the visit."
     )
-    assessments: List[ClinicalFinding] = Field(
-        ..., description="The physician's diagnoses or assessments."
-    )
-    actionables: List[ActionableItem] = Field(
-        ..., description="Specific next steps, prescriptions, or referrals."
-    )
+    assessments: List[ClinicalFinding] = Field(...)
+    actionables: List[ActionableItem] = Field(...)
 ```
 
-## The Audit Trail (`exact_quote`)
-
-The secret to our Zero-Hallucination guarantee lies within the sub-schemas. Every `ClinicalFinding` must include an `exact_quote`.
+The core of the architecture lies inside the sub-schemas. Every generated clinical claim requires a verified proof of origin:
 
 ```python
 class ClinicalFinding(BaseModel):
-    finding: str = Field(..., description="The core clinical fact (e.g., 'Hypertension').")
-    condition_status: str = Field(..., description="E.g., newly diagnosed, worsening, stable.")
+    finding: str = Field(..., description="The clinical claim.")
     exact_quote: str = Field(
         ..., 
-        description="CRITICAL: The exact, literal 1-to-5 word phrase from the transcript that proves this finding. Must be a perfect substring match."
+        description="CRITICAL: The literal, perfect 1-to-5 word substring from the transcript."
     )
 ```
 
-The frontend uses this `exact_quote` to power the Hover UI. Because the LLM understands it will fail the schema validation if it cannot extract a perfect substring match, it *drastically* reduces the likelihood of it hallucinating facts out of thin air. You cannot provide a substring quote for a word that wasn't spoken.
+Because the validator aggressively parses the `exact_quote` against the initial audio transcript, the LLM is artificially constrained. If the model hallucinates a fact—meaning the specific word was never physically spoken—the substring check fails, and the extraction is dropped. This surfaces an unbroken, transparent audit trail directly to the physician in the frontend UI.

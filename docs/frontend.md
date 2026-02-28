@@ -1,36 +1,33 @@
-# Frontend Ecosystem: React & Zen UX
+# Frontend Ecosystem
 
-The Mesh frontend is built on **React**, **TypeScript**, **Tailwind CSS**, and **Vite**. 
+Echo’s user interfaces are built with **React**, **TypeScript**, **Vite**, and **Tailwind CSS**.
 
-It serves two distinct distinct environments:
-- `/doctor`: The Ambient Scribe dashboard.
-- `/patient`: The mobile-optimized patient portal.
+We target two distinct environments:
+- **Doctor Dashboard:** The ambient, browser-based scribe companion.
+- **Patient Dashboard:** A mobile-optimized app simulating the patient portal.
 
-## The Design Philosophy: Minimalist Zen
+## Design Philosophy: Zen UX
 
-Medical interfaces are notoriously cluttered, contributing directly to cognitive load and screen fatigue. Mesh utilizes a strict **Zen UX** paradigm:
-- **Monochrome & Muted:** Core interactions are black, white, and zinc. 
-- **Borderless:** Cards and containers use subtle whitespace and soft background colors (`bg-zinc-50`) instead of harsh borders.
-- **Progressive Disclosure:** Complex data (like the EESZT document viewer modal) only appears when explicitly requested.
+Medical UI is notoriously heavy, cluttered with dense tables and intrusive borders. Echo actively rejects this paradigm in favor of a strict **Zen UX**:
+- **Monochrome Integrity:** We operate on a crisp black, white, and zinc palette. 
+- **Borderless Topography:** We use ample whitespace to separate content logic. Formal lines define actionable elements, contrasting starkly with typography-focused data displays.
+- **Progressive Disclosure:** Deep, complex data (such as the interactive context modals) is hidden by default and summoned only via immediate user click action.
 
-## The Audio Capture Pipeline
+## Audio Engine
 
-The core mechanism of the Doctor Dashboard is the `MediaRecorder` hook.
+The heart of the Doctor dashboard is powered by the `MediaRecorder` API. 
+When the consultation begins, the browser actively buffers ambient dialogue into memory. Because we optimize chunking with backend `ffmpeg` parsers, the audio stream scales seamlessly from a fifteen-second check-in to a forty-five minute complex diagnosis without client-side memory exhaustion.
 
-1. **Capturing:** When the doctor presses "Record," a native browser webhook requests microphone access. 
-2. **Buffering:** Audio chunks are buffered locally in the browser memory. Because our backend uses `ffmpeg` and OpenAI Whisper `chunked` processing, we can handle audio files that last up to an hour.
-3. **Drafting:** When the doctor presses "Stop", the frontend packages the binary `Blob` into a `FormData` object and POSTs it to the `/generate-draft` endpoint.
+## State Architecture
 
-## State Management (`DoctorDashboard.tsx`)
-
-Managing the transition between raw audio, the LLM draft, and the finalized PDF is handled via a strict State Machine `flowState`:
+The consultation lifecycle is managed explicitly via a rigidly typed state machine:
 
 ```tsx
-const [flowState, setFlowState] = useState<'idle' | 'drafting' | 'reviewing' | 'finalizing' | 'done'>('idle');
+type FlowState = 'idle' | 'drafting' | 'reviewing' | 'finalizing' | 'done';
 ```
 
-- **`idle`**: The microphone is ready, waiting for the doctor.
-- **`drafting`**: An overlay spinner appears while the backend processes the audio and LLM extraction.
-- **`reviewing`**: The UI splits. The doctor is presented with an *interactive* form pre-populated by the LLM's `ClinicalDraftJson`. They can type, edit, and hover over findings to see the `exact_quote` Audit Trail.
-- **`finalizing`**: The edited JSON is posted back to the server.
-- **`done`**: The PDF `iframe` renders inline.
+- **`idle`:** Awaiting recording initialization.
+- **`drafting`:** The recording has ceased. Echo presents a minimal spinner while asynchronous requests transit to the transcription and GPT-5.2 infrastructure.
+- **`reviewing`:** The core "Human-in-the-Loop" interactive phase. The structured draft is displayed as an editable form. The physician audits facts via the `exact_quote` tooltips.
+- **`finalizing`:** The physician commits the edited JSON model upstream.
+- **`done`:** The hospital-grade PDF is finalized and rendered natively via `iframe`.
