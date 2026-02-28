@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>SOAP Note Template</title>
+    <style>
+        body {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            margin: 40px;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .section {
+            margin-bottom: 25px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-left: 5px solid #3498db;
+            border-radius: 4px;
+        }
+
+        .section-title {
+            color: #2c3e50;
+            margin-top: 0;
+            font-size: 14pt;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 5px;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .content {
+            font-size: 11pt;
+            color: #555;
+            white-space: pre-line;
+        }
+
+        ul {
+            margin: 5px 0;
+            padding-left: 20px;
+        }
+
+        .vital-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        .vital-item {
+            background: #fff;
+            padding: 8px;
+            border: 1px solid #eee;
+            border-radius: 3px;
+        }
+
+        .vital-label {
+            font-weight: bold;
+            color: #7f8c8d;
+            font-size: 9pt;
+        }
+
+        .vital-value {
+            font-weight: bold;
+            color: #2c3e50;
+            display: block;
+        }
+
+        .no-data {
+            color: #95a5a6;
+            font-style: italic;
+        }
+    </style>
+</head>
+
+<body>
+
+    {% include '_header.html' %}
+
+    <div class="section">
+        <h2 class="section-title">Subjective (S)</h2>
+        <div class="content">
+            <strong>Chief Complaint:</strong><br>
+            {{ dynamic_data.get('chief_complaint', '<span class="no-data">Not provided</span>')|safe }}
+
+            <br><br>
+
+            <strong>History of Present Illness:</strong><br>
+            {{ dynamic_data.get('history_of_present_illness', '<span class="no-data">Not provided</span>')|safe }}
+        </div>
+    </div>
+
+    <div class="section" style="border-left-color: #e74c3c;">
+        <h2 class="section-title">Objective (O)</h2>
+
+        <h3 style="font-size: 12pt; margin-bottom: 5px; color: #555;">Vital Signs</h3>
+        <div class="vital-grid">
+            {% set vitals = dynamic_data.get('vital_signs', {}) %}
+            {% if vitals %}
+            {% for key, val in vitals.items() %}
+            <div class="vital-item">
+                <span class="vital-label">{{ key|replace('_', ' ')|title }}</span>
+                <span class="vital-value">{{ val }}</span>
+            </div>
+            {% endfor %}
+            {% else %}
+            <span class="no-data">No vital signs recorded.</span>
+            {% endif %}
+        </div>
+
+        <h3 style="font-size: 12pt; margin-top: 20px; margin-bottom: 5px; color: #555;">Physical Exam</h3>
+        <div class="content">
+            {{ dynamic_data.get('physical_exam', '<span class="no-data">Not provided</span>')|safe }}
+        </div>
+    </div>
+
+    <div class="section" style="border-left-color: #f39c12;">
+        <h2 class="section-title">Assessment (A)</h2>
+        <div class="content">
+            {{ dynamic_data.get('assessment', '<span class="no-data">Not provided</span>')|safe }}
+        </div>
+    </div>
+
+    <div class="section" style="border-left-color: #27ae60;">
+        <h2 class="section-title">Plan (P)</h2>
+        <div class="content">
+            {% set plan_data = dynamic_data.get('plan', []) %}
+            {% if plan_data and plan_data is iterable and plan_data is not string and plan_data[0] is mapping %}
+            <ol style="margin-top: 0; padding-left: 20px;">
+                {% for p in plan_data %}<li>{{ p.action_item }} (<em>{{ p.type|replace('_', ' ')|title }}</em>)</li>{%
+                endfor %}
+            </ol>
+            {% else %}
+            {{ dynamic_data.get('plan', '<span class="no-data">Not provided</span>')|safe }}
+            {% endif %}
+        </div>
+    </div>
+
+</body>
+
+</html>
