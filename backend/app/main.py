@@ -11,6 +11,7 @@ from app.core.database import get_db
 from app.models.api_models import EncounterMetadata, OrchestrationResponse
 from app.services.pipeline import ZeroHallucinationPipeline
 from app.services.orchestrator import OrchestratorService
+from app.models.persistence_models import Patient, EHRDocument
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("api")
@@ -86,6 +87,23 @@ async def generate_consultation(
     except Exception as e:
         logger.error(f"Orchestration Failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/v1/eeszt/patients")
+async def get_patients(db: Session = Depends(get_db)):
+    patients = db.query(Patient).all()
+    return [{"id": p.id, "name": p.name} for p in patients]
+
+@app.get("/api/v1/eeszt/context/{patient_id}")
+async def get_patient_context(patient_id: str, db: Session = Depends(get_db)):
+    docs = db.query(EHRDocument).filter(EHRDocument.patient_id == patient_id).all()
+    return [
+        {
+            "id": d.id,
+            "type": d.doc_type,
+            "date": d.date.isoformat(),
+            "content": d.content
+        } for d in docs
+    ]
 
 if __name__ == "__main__":
     import uvicorn

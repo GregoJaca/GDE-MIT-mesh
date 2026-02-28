@@ -9,9 +9,10 @@ The initial hackathon layout and core feature structure exist, backed by an in-m
 ## Core Features Implemented
 
 - **Backend & Data Integration**
-  - EESZT-compliant mock SQLite database (`eeszt_mock.db`) mapped to strict Pydantic models.
+  - EESZT-compliant mock SQLite database (`mesh_clinical.db`) mapped to strict Pydantic models.
   - Robust synthetic data generation via `seed.py` for testing medical records (Patients, Doctors, Documents).
-  - Direct integration between the React frontend and local backend endpoints for patient context.
+  - Synthetic clinical transcripts and metadata fixtures in `backend/data/synthetic_transcripts/` for pipeline validation.
+  - Direct integration between the React frontend and local backend endpoints for patient context and history.
 
 - **Provider Dashboard**
   - Select appointments to view clinical documents.

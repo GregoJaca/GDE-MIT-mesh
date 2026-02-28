@@ -1,0 +1,19 @@
+{
+    "metadata": {
+        "patient_id": "PT-1002",
+        "patient_name": "Michael Chen",
+        "patient_taj": "987-654-321",
+        "doctor_id": "DR-003",
+        "doctor_name": "Dr. Robert James",
+        "doctor_seal": "S-James-11",
+        "encounter_date": "2024-01-15T14:30:00Z",
+        "context_documents": [
+            {
+                "type": "emergency_room_triage",
+                "system_doc_id": "DOC-ER-099",
+                "date": "2024-01-12"
+            }
+        ]
+    },
+    "transcript": "Hi Michael. Let's take a look at that right knee. I understand from the ER triage notes from three days ago that you had a skiing accident. You mentioned feeling a pop, which is concerning. On examination, I feel a moderate effusion here. Let me perform the Lachman test... yes, there is laxity, and I also note joint line tenderness. Based on this, I suspect either an ACL tear or a meniscus injury. We need to order an MRI of the right knee immediately to confirm. In the meantime, I am prescribing some NSAIDs for the pain. You must use crutches and keep minimal weight bearing on that leg until we review the MRI results."
+}

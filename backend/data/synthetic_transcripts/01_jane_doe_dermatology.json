@@ -1,0 +1,19 @@
+{
+    "metadata": {
+        "patient_id": "P-10101",
+        "patient_name": "Jane Doe",
+        "patient_taj": "123-456-789",
+        "doctor_id": "DR-002",
+        "doctor_name": "Dr. Sarah Miller",
+        "doctor_seal": "S-Miller-99",
+        "encounter_date": "2024-02-28T10:00:00Z",
+        "context_documents": [
+            {
+                "type": "dermatology_consult",
+                "system_doc_id": "DOC-DERM-001",
+                "date": "2024-02-20"
+            }
+        ]
+    },
+    "transcript": "Hello Jane. Today we are doing a follow-up evaluation of the pigmented lesion on your right forearm that you mentioned last week. Looking at it through the dermoscope, the lesion is about 4 millimeters wide. It is asymmetrical and has irregular borders. Comparing it to the earlier consult note, it seems to have changed slightly. I see an atypical network here. Because of these features, I recommend an excisional biopsy to rule out melanoma. It's a quick procedure we can schedule for next week. In the meantime, please remember our counseling on sun protection and continue doing your regular skin self-examinations."
+}

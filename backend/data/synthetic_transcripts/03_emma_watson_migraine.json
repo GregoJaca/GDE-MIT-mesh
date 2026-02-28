@@ -1,0 +1,19 @@
+{
+    "metadata": {
+        "patient_id": "PT-1003",
+        "patient_name": "Emma Watson",
+        "patient_taj": "111-222-333",
+        "doctor_id": "DR-004",
+        "doctor_name": "Dr. Emily Chen",
+        "doctor_seal": "S-Chen-44",
+        "encounter_date": "2024-02-10T09:15:00Z",
+        "context_documents": [
+            {
+                "type": "neurology_consult",
+                "system_doc_id": "DOC-NEURO-88",
+                "date": "2023-11-20"
+            }
+        ]
+    },
+    "transcript": "Good morning Emma. Let's discuss how you've been doing with your chronic migraine management. Looking back at your previous neurology consult, we started you on Topiramate prophylactically. How has that been working? I see from your migraine diary that the frequency of your attacks has decreased from four times a week down to roughly once a week. That is a significant improvement. Have you experienced any side effects? Okay, since the current dosage is effective and you are tolerating it well, we will continue with this treatment plan. It remains very important that you maintain a consistent sleep schedule and stay well hydrated, as we discussed previously."
+}

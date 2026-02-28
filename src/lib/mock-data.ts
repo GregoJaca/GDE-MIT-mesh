@@ -110,6 +110,7 @@ export const appointments: Appointment[] = [
     doctorId: 'DR-001',
     status: 'Completed',
     report: `Patient presented for routine annual physical. Vitals are stable. Blood pressure 118/75, HR 72 bpm. Patient reports occasional fatigue but otherwise feels well. Labs ordered for general wellness panel. Recommended increasing cardiovascular exercises and maintaining current diet. No urgent concerns at this time.`,
+    patientSummary: `Hello Jane, you came in today for your routine annual physical. Everything looks stable. Your blood pressure and heart rate are normal. You mentioned feeling somewhat fatigued, but we didn't find any urgent issues. We have ordered a general wellness blood panel to check on things. In the meantime, I recommend increasing your cardiovascular exercise. No urgent concerns at this time.`
   },
   {
     id: 'APP-002',
@@ -120,6 +121,7 @@ export const appointments: Appointment[] = [
     doctorId: 'DR-001',
     status: 'Completed',
     report: `Reviewed lab results from 10/14. Lipid panel shows slightly elevated LDL cholesterol (135 mg/dL). Thyroid function normal. Vitamin D levels are on the lower side of normal (32 ng/mL). Discussed dietary modifications to reduce saturated fats. Prescribed Vitamin D3 1000 IU daily. Follow up in 6 months to recheck lipids.`,
+    patientSummary: `Hi Jane. We reviewed your recent lab results today. Your cholesterol is slightly elevated, but your thyroid function is completely normal. Your Vitamin D levels are on the lower side. To help manage this, we discussed some dietary modifications to reduce saturated fats. I have prescribed a Vitamin D3 supplement for you to take daily. Let's schedule a follow-up appointment in 6 months to recheck your cholesterol levels.`
   },
   {
     id: 'APP-003',
@@ -130,6 +132,7 @@ export const appointments: Appointment[] = [
     doctorId: 'DR-002',
     status: 'Completed',
     report: `Evaluation of new pigmented lesion on right forearm. Lesion is 4mm, asymmetrical with irregular borders. Dermoscopy shows atypical network. Recommended excisional biopsy to rule out melanoma. Procedure scheduled for next week. Patient counseled on sun protection and regular self-examinations.`,
+    patientSummary: `Hello Jane. Today we evaluated the new pigmented lesion on your right forearm. Because it has irregular borders and some atypical features under the microscope, I recommend we do an excisional biopsy next week just to rule out anything serious like melanoma. It will be a quick procedure. Please remember to use sun protection and continue doing regular skin self-examinations.`
   },
 
   // Michael Chen (PT-1002)
@@ -142,6 +145,7 @@ export const appointments: Appointment[] = [
     doctorId: 'DR-003',
     status: 'Review Required',
     report: `Patient presents with right knee pain following a skiing incident 3 days ago. Exam reveals moderate effusion, positive Lachman test, and joint line tenderness. Suspected ACL tear or meniscus injury. MRI of right knee ordered immediately. Prescribed NSAIDs and recommended crutches with minimal weight bearing until MRI results are reviewed.`,
+    patientSummary: `Hi Michael. Let's talk about your right knee. The swelling and tenderness you're experiencing from your skiing accident suggests you might have a meniscus injury or an ACL tear. We are ordering an MRI immediately to get a clear picture. For now, please take the prescribed NSAIDs for the pain, use your crutches, and minimize putting any weight on that leg until we review the MRI results.`
   },
 
   // Emma Watson (PT-1003)
@@ -154,6 +158,7 @@ export const appointments: Appointment[] = [
     doctorId: 'DR-004',
     status: 'Completed',
     report: `Follow up on chronic migraine management. Patient reports decreased frequency of attacks from 4x/week to 1x/week since starting prophylactic medication (Topiramate). Current dosage is effective and well-tolerated. Reviewed migraine diary. Discussed the importance of maintaining consistent sleep schedule and hydration. Will continue current treatment plan.`,
+    patientSummary: `Good morning Emma. We discussed your chronic migraine management today. It's great news that the frequency of your attacks has decreased from four times a week down to once a week since starting Topiramate. Since the current dosage is effective and you have no side effects, we will continue this treatment plan. Please remember to maintain a consistent sleep schedule and stay well hydrated.`
   }
 ];
 

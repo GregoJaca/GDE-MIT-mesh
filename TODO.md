@@ -27,6 +27,9 @@
 - **Patient AI Assistant Interface**: [done]
 - **AI Transcription Backend API**: [integrated]
 - **Backend File Upload Integration**: [missing]
+- **Synthetic Clinical Data Generation**: [done]
+- **EESZT DB Seeding**: [done]
+- **Patient Dashboard History**: [done]
 - **General Profile & Settings Dialogs**: [minimal implementation]
 - **deleting audio when sended to the transcriber**: [done]
 - **delete view bottom**
@@ -41,7 +44,10 @@
 - [x] Create Beautiful HTML Templates for PDF reports (done - SOAP, H&P, Discharge, Consult, Op Note)
 - [x] Create Python generator (`generate_report.py`) utilizing `WeasyPrint` & `jinja2` (done)
 - [ ] Connect `generate_report` to main pipeline workflow (placeholder)
-- [ ] Add rigorous unit testing (missing)
+- [x] Add rigorous unit testing (partial - synthetic pipeline validation)
+- [x] Create synthetic clinical scenarios for testing and demonstration (done)
+- [x] Seed EESZT mock database with realistic patient journeys (done)
+
 
 ## Transcriber Module
 - [x] Configure Azure Speech SDK for speaker diarization (done)
