@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { getGeneratedPdf } from '@/stores/pdf.store';
 import { getGeneratedMd } from '@/stores/md.store';
-import ReactMarkdown from 'react-markdown';
+import EesztMarkdown from '@/components/shared/EesztMarkdown';
 import { MOCK_REPORT_PDFS } from '@/config/mock-fixtures';
 
 interface ReportViewerProps {
@@ -129,8 +129,8 @@ export default function ReportViewer({
                         className="w-full text-left group"
                     >
                         <div className={`flex items-center gap-4 p-4 rounded-xl border transition-all duration-200 hover:-translate-y-px ${hasGeneratedPdf || hasGeneratedMd
-                                ? 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 hover:shadow-md'
-                                : 'bg-gradient-to-r from-teal-50 to-emerald-50 dark:from-teal-950/60 dark:to-emerald-950/40 border-teal-200 dark:border-teal-800 hover:shadow-lg hover:shadow-teal-100 dark:hover:shadow-teal-950/30'
+                            ? 'bg-slate-50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 hover:shadow-md'
+                            : 'bg-gradient-to-r from-teal-50 to-emerald-50 dark:from-teal-950/60 dark:to-emerald-950/40 border-teal-200 dark:border-teal-800 hover:shadow-lg hover:shadow-teal-100 dark:hover:shadow-teal-950/30'
                             }`}>
                             <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${hasGeneratedPdf || hasGeneratedMd ? 'bg-slate-200 dark:bg-slate-700' : 'bg-gradient-to-br from-teal-500 to-emerald-500 shadow-md shadow-teal-500/25'
                                 }`}>
@@ -207,7 +207,7 @@ export default function ReportViewer({
                             <div className="w-full min-h-full p-8 sm:p-12">
                                 <div className="max-w-3xl mx-auto bg-white dark:bg-slate-900 p-8 sm:p-10 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800">
                                     <article className="prose prose-slate dark:prose-invert lg:prose-lg max-w-none prose-headings:text-slate-800 dark:prose-headings:text-white prose-a:text-violet-500">
-                                        <ReactMarkdown>{generatedMd || appointmentReport || '*No markdown content available.*'}</ReactMarkdown>
+                                        <EesztMarkdown content={generatedMd || appointmentReport || '*No markdown content available.*'} />
                                     </article>
                                 </div>
                             </div>

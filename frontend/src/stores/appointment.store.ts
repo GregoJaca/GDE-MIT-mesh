@@ -10,7 +10,7 @@ let _patients: Patient[] = [];
 export function setPatientCache(patients: Patient[]): void { _patients = patients; }
 export function getPatientById(id: string): Patient | undefined { return _patients.find((p) => p.id === id); }
 
-import type { Appointment, MedicalCase } from '@/types';
+import type { Appointment, MedicalCase, MedicationAction } from '@/types';
 
 // Internal mutable arrays seeded from mock fixtures
 const appointments: Appointment[] = [...MOCK_APPOINTMENTS];
@@ -46,6 +46,7 @@ export function updateAppointmentReport(
     id: string,
     newReport: string,
     newSummary?: string,
+    newActionables?: MedicationAction[]
 ): void {
     const idx = appointments.findIndex((a) => a.id === id);
     if (idx !== -1) {
@@ -53,6 +54,7 @@ export function updateAppointmentReport(
             ...appointments[idx],
             report: newReport,
             ...(newSummary ? { patientSummary: newSummary } : {}),
+            ...(newActionables ? { actionables: newActionables } : {}),
         };
     }
 }

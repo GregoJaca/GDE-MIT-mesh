@@ -1,0 +1,27 @@
+{
+  "patient_id": "P-001",
+  "doctor_id": "D-99",
+  "encounter_date": "2024-03-01T10:00:00Z",
+  "format_id": "fmt_001",
+  "edited_clinical_json": {
+    "chief_complaints": [
+      {
+        "finding": "Test headache from JSON",
+        "condition_status": "active"
+      }
+    ],
+    "assessments": [
+      {
+        "finding": "Tension headache confirmed by doctor",
+        "condition_status": "active"
+      }
+    ],
+    "actionables": [
+      {
+        "action_type": "medication",
+        "description": "Take 400mg Ibuprofen PRN",
+        "status": "planned"
+      }
+    ]
+  }
+}

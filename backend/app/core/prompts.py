@@ -18,7 +18,7 @@ System Context:
 {system_context}"""
 
 PATIENT_SUMMARY_SYSTEM_PROMPT = """You are a patient advocate translator. 
-Translate the provided Clinical Report and Transcript into layman terms for the patient's summary.
+Translate the provided Clinical Report and Transcript into layman terms for the patient's summary in the following language: {language}
 CRITICAL RULES:
 1. Do NOT add any medical instructions or findings not present in the Clinical Report or Transcript.
 2. Preserve all 'system_reference_id' pointers exactly. 

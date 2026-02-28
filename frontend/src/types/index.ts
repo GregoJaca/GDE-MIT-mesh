@@ -30,6 +30,7 @@ export interface Appointment {
     report: string;
     patientSummary?: string;
     status: AppointmentStatus;
+    actionables?: MedicationAction[];
 }
 
 // External system context document (generic abstraction over upstream system pointers)
@@ -44,8 +45,10 @@ export interface PatientContext {
     context_documents: ContextDocument[];
 }
 
-// API response from the consultation generation endpoint
+// API response from the finalized consultation endpoint
 export interface ConsultationResult {
+    medical_report_pdf_url: string;
+    patient_summary_md: string;
     administrative_metadata: {
         patient_id: string;
         patient_name: string;
@@ -55,28 +58,54 @@ export interface ConsultationResult {
         doctor_seal: string;
         encounter_date: string;
     };
-    clinical_report: {
-        chief_complaints: ClinicalFinding[];
-        assessments: ClinicalFinding[];
-        medications: MedicationAction[];
+}
+
+// Editable dictionary structure returned by the Draft endpoint
+export interface ClinicalDraftJson {
+    chief_complaints: ClinicalFinding[];
+    assessments: ClinicalFinding[];
+    actionables: MedicationAction[];
+}
+
+export interface DraftResponse {
+    administrative_metadata: {
+        patient_id: string;
+        patient_name: string;
+        patient_taj: string;
+        doctor_id: string;
+        doctor_name: string;
+        doctor_seal: string;
+        encounter_date: string;
     };
-    patient_summary: {
-        layman_explanation: string;
-        actionables: { description: string; timeframe?: string }[];
-    };
+    patient_summary_md: string;
+    clinical_draft_json: ClinicalDraftJson;
+    token_map: Record<string, string>;
+}
+
+export interface FinalizeRequestPayload {
+    patient_id: string;
+    doctor_id: string;
+    encounter_date: string;
+    format_id: string;
+    edited_clinical_json: ClinicalDraftJson;
 }
 
 export interface ClinicalFinding {
     finding: string;
     condition_status: string;
     system_reference_id?: string;
+    exact_quote?: string;
+    contextual_quote?: string;
 }
 
 export interface MedicationAction {
     action_type: string;
     description: string;
     timeframe?: string;
+    status?: string;
     system_reference_id?: string;
+    exact_quote?: string;
+    contextual_quote?: string;
 }
 
 export interface Recording {

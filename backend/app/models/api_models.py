@@ -21,6 +21,19 @@ class EncounterMetadata(BaseModel):
     encounter_date: str = Field(..., description="ISO 8601 Datetime.")
     format_id: str = Field(default="fmt_001", description="Report format ID.")
 
+class DraftResponse(BaseModel):
+    administrative_metadata: dict
+    patient_summary_md: str
+    clinical_draft_json: dict = Field(..., description="The editable, hydrated clinical dictionary.")
+    token_map: dict = Field(default={}, description="The presidio token map required for final re-hydration.")
+
+class FinalizeRequest(BaseModel):
+    patient_id: str
+    doctor_id: str
+    encounter_date: str
+    format_id: str = "fmt_001"
+    edited_clinical_json: dict
+
 class OrchestrationResponse(BaseModel):
     medical_report_pdf_url: str
     patient_summary_md: str

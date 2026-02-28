@@ -53,8 +53,8 @@ class ZeroHallucinationPipeline:
 
         return valid_report
 
-    def generate_patient_summary(self, validated_clinical_dict: dict, scrubbed_transcript: str, system_context: str) -> dict:
-        system_prompt = PATIENT_SUMMARY_SYSTEM_PROMPT.format(system_context=system_context)
+    def generate_patient_summary(self, validated_clinical_dict: dict, scrubbed_transcript: str, system_context: str, language: str = "en") -> dict:
+        system_prompt = PATIENT_SUMMARY_SYSTEM_PROMPT.format(system_context=system_context, language=language)
 
         parsed = self.llm.parse_completion(
             messages=[
@@ -66,7 +66,7 @@ class ZeroHallucinationPipeline:
         )
         return parsed.model_dump()
 
-    def run_consultation(self, raw_transcript: str, metadata_context: dict) -> tuple[dict, dict, dict]:
+    def run_consultation(self, raw_transcript: str, metadata_context: dict, language: str = "en") -> tuple[dict, dict, dict]:
         """Runs the complete E2E zero-hallucination pipeline."""
         # 1. PII Scrubbing
         scrubbed_transcript, token_map = scrubber.scrub(raw_transcript)
@@ -92,7 +92,8 @@ class ZeroHallucinationPipeline:
             patient_summary_dict = self.generate_patient_summary(
                 validated_clinical_dict=validated_clinical_dict,
                 scrubbed_transcript=scrubbed_transcript,
-                system_context=system_context
+                system_context=system_context,
+                language=language
             )
         except Exception as e:
             logger.error(f"Patient Summary Failed: {e}")

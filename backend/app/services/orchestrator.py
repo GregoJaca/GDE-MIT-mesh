@@ -16,25 +16,21 @@ class OrchestratorService:
     def __init__(self, pipeline: ZeroHallucinationPipeline):
         self.pipeline = pipeline
 
-    async def run_full_extraction(
-        self, 
-        audio_file_path: str, 
-        format_id: str,
+    async def generate_draft(
+        self,
+        audio_file_path: str,
         db: Session,
         patient_id: str,
         doctor_id: str,
-        encounter_date: str
-    ) -> Tuple[str, str]:
+        encounter_date: str,
+        language: str = "en"
+    ) -> Tuple[dict, dict, dict, dict]:
         """
-        Orchestrates the full flow:
-        1. Parse DB Context.
-        2. Transcribe Audio.
-        3. LLM Pipeline Execution.
-        4. Document Generation.
+        Step 1: Audio -> Transcript -> LLM Pipeline -> Draft JSON.
+        Returns the raw clinical dictionary, patient dictionary, token map, and metadata.
         """
-        logger.info(f"Starting orchestration for patient {patient_id}")
+        logger.info(f"Generating draft for patient {patient_id} in language {language}")
         
-        # 1. Fetch DB Context
         patient_meta, context_docs = DBService.get_patient_context(db, patient_id)
         if not patient_meta:
             raise ValueError(f"Patient {patient_id} context could not be retrieved.")
@@ -42,15 +38,12 @@ class OrchestratorService:
         doctor_meta = DBService.get_doctor_context(db, doctor_id)
         available_doctors = DBService.get_available_doctors(db)
         
-        # 2. Transcribe Audio
         loop = asyncio.get_running_loop()
         transcript_lines = await loop.run_in_executor(None, transcribe_file_with_diarization, audio_file_path)
         raw_transcript = " ".join(transcript_lines)
         
-        # Filter out doctor names from the context passed to the LLM to prevent hallucinations/PII leakage
         available_doctor_categories = [{"doctor_id": d["doctor_id"], "specialty": d["specialty"]} for d in available_doctors]
         
-        # Construct full metadata context for the pipeline
         full_metadata = {
             "patient_id": patient_id,
             "patient_name": patient_meta["name"],
@@ -63,15 +56,27 @@ class OrchestratorService:
             "available_doctor_categories": available_doctor_categories
         }
         
-        # Run Pipeline
-        hydrated_clinical, hydrated_patient, _ = self.pipeline.run_consultation(
+        hydrated_clinical, hydrated_patient, token_map = self.pipeline.run_consultation(
             raw_transcript=raw_transcript,
-            metadata_context=full_metadata
+            metadata_context=full_metadata,
+            language=language
         )
         
-        # Document Generation Integration
-        # We need a format for report_generator. Let's use 'fmt_001' (SOAP or Consult)
-        # Map the structured clinical lists into the SOAP format expected by fmt_001
+        return hydrated_clinical, hydrated_patient, token_map, full_metadata
+
+    def complete_consultation(
+        self,
+        hydrated_clinical: dict,
+        hydrated_patient: dict,
+        full_metadata: dict,
+        format_id: str
+    ) -> Tuple[str, str]:
+        """
+        Step 2: Edited JSON -> Weasyprint PDF Generation -> Return URLs.
+        """
+        patient_id = full_metadata["patient_id"]
+        logger.info(f"Completing consultation (generating PDF) for patient {patient_id}")
+        
         soap_dynamic_data = hydrated_clinical
         if format_id == "fmt_001":
             cc_list = [f"• {c['finding']} ({c['condition_status']})" for c in hydrated_clinical.get("chief_complaints", [])]
@@ -87,14 +92,13 @@ class OrchestratorService:
                 "plan": plan_list
             }
 
-        # Constructing the report_generator payload
         doc_payload = {
             "universal_header": {
-                "patient_name": patient_meta["name"],
+                "patient_name": full_metadata["patient_name"],
                 "patient_id": patient_id,
-                "taj": patient_meta["taj"],
-                "doctor_name": doctor_meta["name"],
-                "date": encounter_date
+                "taj": full_metadata["patient_taj"],
+                "doctor_name": full_metadata["doctor_name"],
+                "date": full_metadata["encounter_date"]
             },
             "dynamic_data": soap_dynamic_data
         }
@@ -102,13 +106,12 @@ class OrchestratorService:
         output_pdf = f"/tmp/medical_report_{patient_id}.pdf"
         
         success, pdf_path, md_report_path = generate_report_from_dict(
-            doc_payload, "fmt_001", output_pdf
+            doc_payload, format_id, output_pdf
         )
         
-        # Also save the layman summary as a separate MD file
         patient_summary_md_path = f"/tmp/patient_summary_{patient_id}.md"
         with open(patient_summary_md_path, "w", encoding="utf-8") as f:
-            f.write(f"# Patient Summary: {patient_meta['name']}\n\n")
+            f.write(f"# Patient Summary: {full_metadata['patient_name']}\n\n")
             f.write(hydrated_patient["layman_explanation"])
         
         return pdf_path, patient_summary_md_path

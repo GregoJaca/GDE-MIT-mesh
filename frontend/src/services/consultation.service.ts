@@ -3,35 +3,46 @@
 import { APP_CONFIG } from '@/config/app.config';
 import type { ConsultationResult, PatientContext } from '@/types';
 
-export interface ConsultationPayload {
+export interface DraftPayload {
     patientContext: PatientContext;
-    transcript: string;
     doctorId: string;
-    doctorName: string;
-    doctorSeal: string;
+    date: string;
+    audio: Blob;
+    language: string;
 }
 
-export async function generateConsultation(payload: ConsultationPayload): Promise<ConsultationResult> {
-    const res = await fetch(APP_CONFIG.API.CONSULTATION_URL, {
+export async function generateDraft(payload: DraftPayload): Promise<import('@/types').DraftResponse> {
+    const formData = new FormData();
+    formData.append('patient_id', payload.patientContext.patient.id);
+    formData.append('doctor_id', payload.doctorId);
+    formData.append('encounter_date', payload.date);
+    formData.append('language', payload.language);
+    formData.append('audio', payload.audio, 'consultation.webm');
+
+    const res = await fetch('http://localhost:8000/api/v1/generate-draft', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            metadata: {
-                patient_id: payload.patientContext.patient.id,
-                patient_name: payload.patientContext.patient.name,
-                patient_taj: payload.patientContext.patient.taj,
-                doctor_id: payload.doctorId,
-                doctor_name: payload.doctorName,
-                doctor_seal: payload.doctorSeal,
-                encounter_date: new Date().toISOString(),
-                context_documents: payload.patientContext.context_documents,
-            },
-            transcript: payload.transcript,
-        }),
+        body: formData,
     });
+
     if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error((err as { detail?: string }).detail || `Consultation API error: ${res.status}`);
+        throw new Error((err as { detail?: string }).detail || `Draft API error: ${res.status}`);
+    }
+    return res.json();
+}
+
+export async function finalizeReport(payload: import('@/types').FinalizeRequestPayload): Promise<import('@/types').ConsultationResult> {
+    const res = await fetch('http://localhost:8000/api/v1/finalize-report', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error((err as { detail?: string }).detail || `Finalize API error: ${res.status}`);
     }
     return res.json();
 }

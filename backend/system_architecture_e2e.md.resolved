@@ -1,0 +1,205 @@
+# End-to-End System Data Flow Architecture
+
+This document provides a highly detailed, technical breakdown of every step, input, output, and system component in the architecture. It traces the lifecycle of an audio consultation from the frontend upload to the final PDF and Markdown report distribution, highlighting the crucial steps taken for PII anonymization and zero-hallucination guardrailing.
+
+## High-Level System Architecture
+
+The ecosystem relies on three core tiers:
+
+1. **Frontend (React + TypeScript + Vite)**: Handles user interaction, UI rendering, device audio recording, document viewing, and makes multipart form-data API requests to the Backend.
+2. **Backend (FastAPI + Python)**: The orchestration layer. It manages data ingestion, audio transcription, PII scrubbing, LLM inference, deterministic guardrailing, and final report generation.
+3. **Database (SQLite + SQLAlchemy)**: An EESZT-compliant mock persistence layer that holds raw tables for [Patient](file:///home/peter/Documents/proj/minds_and_machines_hackathon/GDE-MIT-mesh/backend/app/models/persistence_models.py#5-22), [Doctor](file:///home/peter/Documents/proj/minds_and_machines_hackathon/GDE-MIT-mesh/backend/app/models/persistence_models.py#23-31), and [EHRDocument](file:///home/peter/Documents/proj/minds_and_machines_hackathon/GDE-MIT-mesh/backend/app/models/persistence_models.py#49-61).
+
+---
+
+## 1. Triggering the Workflow: Frontend to Backend
+
+The journey begins when a doctor completes a dictation session in the Provider Dashboard and clicks "Generate Report".
+
+* **Action**: Frontend executes a `POST` request to `/api/v1/generate-consultation`.
+* **Content-Type**: `multipart/form-data`
+
+### Input API Schema
+| Field | Type | Description |
+| :--- | :--- | :--- |
+| `audio` | `File (WAV)` | The raw mono voice recording. |
+| `patient_id` | `String` | e.g., `"P-001"`. Used to query patient history mapping. |
+| `doctor_id` | `String` | e.g., `"D-004"`. Used to map the consulting provider. |
+| `encounter_date` | `String` | ISO8601 Datetime of the session. |
+| `format_id` | `String` | Defaults to `"fmt_001"` (SOAP Note layout). |
+
+---
+
+## 2. The Orchestration Layer ([OrchestratorService](file:///home/peter/Documents/proj/minds_and_machines_hackathon/GDE-MIT-mesh/backend/app/services/orchestrator.py#15-115))
+
+Once the payload hits the FastAPI route, it is handed off to the `OrchestratorService.run_full_extraction()` method. This is the central nervous system of the backend.
+
+### Step 2a: DB Context Hydration
+The Orchestrator queries the **Database** referencing the frontend identifiers to retrieve the extended context needed without storing sensitive data in the browser.
+
+* `DBService.get_patient_context(patient_id)`:
+  * Returns: `PatientMeta` (Name, TAJ, DOB) and `ContextDocuments` (History of past doc IDs and Dates).
+* `DBService.get_doctor_context(doctor_id)`:
+  * Returns: `DoctorMeta` (Name, Seal Number).
+* `DBService.get_available_doctors()`:
+  * Returns: `AvailableDoctors` (List of doctor IDs and Specialties).
+
+### Step 2b: Audio Transcription
+The Orchestrator sends the raw `.wav` file to Azure Cognitive Services.
+* **Input**: `.wav` file path.
+* **Output**: Diarized raw transcript string (e.g., `"Doc: How are you? Patient: I have a fever."`).
+
+### Step 2c: Assembling System Context
+The Orchestrator bundles the fetched parameters into a `full_metadata` dictionary.
+* **CRITICAL PII STEP:** Before placing `AvailableDoctors` into the context, the Orchestrator **strips the doctors' names**, passing only categories to the LLM.
+  ```python
+  available_doctor_categories = [{"doctor_id": d["doctor_id"], "specialty": d["specialty"]} for d in available_doctors]
+  ```
+
+---
+
+## 3. The Intelligence Layer ([ZeroHallucinationPipeline](file:///home/peter/Documents/proj/minds_and_machines_hackathon/GDE-MIT-mesh/backend/app/services/pipeline.py#10-106))
+
+The Orchestrator passes the `raw_transcript` and the `full_metadata` dictionary to the Pipeline. The Pipeline manages the lifecycle of data mutating from "Raw" to "Anonymized" to "Hydrated Structure".
+
+### Step 3a: PII Detection & Anonymization
+**Module**: [scrubber.py](file:///home/peter/Documents/proj/minds_and_machines_hackathon/GDE-MIT-mesh/backend/scrubber.py)
+The raw transcript is fed into Microsoft Presidio (Analyzer + Anonymizer).
+* **Input**: `"My name is John Doe and my phone is 555-1234. I see Dr. Smith."`
+* **Output 1 (`scrubbed_transcript`)**: `"<PERSON_1> and my phone is <PHONE_NUMBER_1>. I see <PERSON_2>."`
+* **Output 2 (`token_map`)**: `{"<PERSON_1>": "John Doe", "<PHONE_NUMBER_1>": "555-1234", "<PERSON_2>": "Dr. Smith"}`
+
+### Step 3b: Clinical Extraction (CoVe LLM Call 1)
+**Module**: [llm_client.py](file:///home/peter/Documents/proj/minds_and_machines_hackathon/GDE-MIT-mesh/backend/app/core/llm_client.py) (Connecting to Azure OpenAI `model-router`)
+* **Input Prompt**: `CLINICAL_EXTRACTION_SYSTEM_PROMPT` containing JSON mappings of `context_documents` and `available_doctor_categories`.
+* **Input Data**: `scrubbed_transcript`
+* **Output Phase**: The LLM generates a Chain-of-Thought (CoVe) and extracts structured JSON arrays (`chief_complaints`, `assessments`, `actionables`). Every extracted item **must** include an `exact_quote` from the text.
+
+### Step 3c: Deterministic Quote Validation (Guardrail)
+**Module**: `pipeline.validate_quotes()`
+The system iterates over every item returned by the LLM. It performs a classic Python `transcript.find(exact_quote)`.
+* **Action**: If an `exact_quote` string is NOT found verbatim inside the `scrubbed_transcript` string, the system assumes the LLM hallucinated the finding. The entire finding block is instantly **stripped/deleted** from the JSON payload.
+
+### Step 3d: Patient Summary Translation (LLM Call 2)
+* **Input Prompt**: `PATIENT_SUMMARY_SYSTEM_PROMPT`
+* **Input Data**:
+  1. The Guardrailed Clinical Extraction JSON.
+  2. The `scrubbed_transcript`.
+  3. The `system_context` payload (Available Doctors/Docs metadata).
+* **Output**: A layman-friendly Markdown string summarizing the clinical JSON (still PII-free).
+
+### Step 3e: PII Re-Hydration
+**Module**: `scrubber.hydrate_dict()`
+The Pipeline holds the structured Clinical JSON and the Markdown Patient Summary. Note that they currently contain tokens like `<PERSON_1>`.
+The pipeline runs a multi-pass regex utilizing the `token_map` from Step 3a, replacing all tokens back with their original sensitive values.
+* **Output**: Fully mapped, hydrated, PII-inclusive arrays and string dictionaries ready for PDF rendering.
+
+---
+
+## 4. Document Generation & Delivery
+
+Control is returned to the [OrchestratorService](file:///home/peter/Documents/proj/minds_and_machines_hackathon/GDE-MIT-mesh/backend/app/services/orchestrator.py#15-115) with the hydrated PII medical data and layman summary.
+
+### Step 4a: SOAP Format Mapping
+If `format_id == "fmt_001"`, the Orchestrator maps the distinct Pydantic arrays (`chief_complaints`, `assessments`) into strictly expected template dictionary keys (`chief_complaint`, `assessment`, `plan`), joining data with `<br>` tags.
+
+### Step 4b: Template HTML/PDF Rendering
+**Module**: `report_generator.py` (via `Jinja2` and `WeasyPrint`)
+* The Orchestrator constructs a `doc_payload` dictionary combining the `UniversalHeader` (Patient Name, TAJ, Doctor Name, Seal) and the `dynamic_data` (Mapped SOAP note findings).
+* `Jinja2` renders [soap_note.html](file:///home/peter/Documents/proj/minds_and_machines_hackathon/GDE-MIT-mesh/backend/app/report_generator/templates/soap_note.html) using the variables.
+* `WeasyPrint` compiles the HTML string into a static PDF blob resting in `/tmp/medical_report.pdf`.
+* The [patient_summary](file:///home/peter/Documents/proj/minds_and_machines_hackathon/GDE-MIT-mesh/backend/app/services/pipeline.py#56-68) LLM output is wrapped in a `<title>` header and saved as `/tmp/patient_summary.md`.
+
+### Step 4c: Return to Frontend
+The FastAPI endpoint receives the path to the PDF and the content of the MD string, returning an [OrchestrationResponse](file:///home/peter/Documents/proj/minds_and_machines_hackathon/GDE-MIT-mesh/backend/app/models/api_models.py#24-28) JSON back to the UI.
+
+### Output API Schema (Response)
+```json
+{
+  "medical_report_pdf_url": "/outputs/medical_report_P-001.pdf",
+  "patient_summary_md": "# Patient Summary: ... \n\n Your visit indicates...",
+  "administrative_metadata": {
+    "patient_id": "P-001",
+    "doctor_id": "D-004",
+    "encounter_date": "2026-02-28T10:00:00Z",
+    "format_id": "fmt_001"
+  }
+}
+```
+
+---
+
+## E2E Data Flow Mermaid Architecture
+
+```mermaid
+sequenceDiagram
+    participant UI as Frontend (React)
+    participant API as FastAPI Router
+    participant DB as SQLite / SQLAlchemy
+    participant ORC as OrchestratorService
+    participant TRN as Azure Speech (WAV)
+    participant SCR as Presidio Scrubber
+    participant PL as ZeroHallucination<br>Pipeline
+    participant LLM as Azure OpenAI
+    participant RPT as WeasyPrint<br>Generator
+
+    Note over UI, API: Form-Data: audio.wav + ID Metadata
+    UI->>API: POST /generate-consultation
+
+    API->>ORC: run_full_extraction(audio, metadata_ids)
+    
+    %% Context Hydration Phase
+    rect rgb(240, 240, 240)
+        Note over ORC, DB: PII strictly kept server-side
+        ORC->>DB: get_patient_context(patient_id)
+        DB-->>ORC: PatientMeta + ContextDocuments
+        ORC->>DB: get_doctor_context(doctor_id)
+        DB-->>ORC: DoctorMeta (Name/Seal)
+        ORC->>DB: get_available_doctors()
+        DB-->>ORC: AvailableDoctors List
+        ORC->>ORC: Strip Real Names > Create available_doctor_categories 
+    end
+
+    %% Transcription Phase
+    ORC->>TRN: Diarize Audio File
+    TRN-->>ORC: raw_transcript
+
+    ORC->>PL: run_consultation(raw_transcript, full_metadata)
+
+    %% Intelligence & Anonymization Phase
+    rect rgb(255, 244, 229)
+        Note over PL, SCR: Protect PII before cloud boundaries
+        PL->>SCR: scrub(raw_transcript)
+        SCR-->>PL: scrubbed_transcript, token_map
+        
+        Note over PL, LLM: Extraction Phase
+        PL->>LLM: Extraction Prompt + Scrubbed Text + Document/Doctor Context
+        LLM-->>PL: Structured JSON w/ Exact Quotes
+        
+        Note over PL, PL: Deterministic Rule Constraints
+        PL->>PL: validate_quotes(): Verify exactly against scrubbed_transcript
+        
+        Note over PL, LLM: Translation Phase
+        PL->>LLM: Summary Prompt + Validated JSON + Scrubbed Text + Context
+        LLM-->>PL: PII-Free Patient Summary Markdown
+        
+        Note over PL, SCR: Rehydration
+        PL->>SCR: hydrate_dict(Validated JSON, token_map)
+        SCR-->>PL: hydrated_clinical_dict
+        PL->>SCR: hydrate_dict(Patient Summary, token_map)
+        SCR-->>PL: hydrated_patient_md
+    end
+
+    PL-->>ORC: Output Hydrated Data
+
+    %% Presentation Phase
+    rect rgb(230, 240, 255)
+        ORC->>ORC: Map structured arrays to 'fmt_001' SOAP dictionary keys
+        ORC->>RPT: generate_report_from_dict(SOAP payload)
+        RPT-->>ORC: /tmp/medical_report.pdf path
+    end
+
+    ORC-->>API: PDF Path, Patient Summary Markdown Content
+    API-->>UI: Return OrchestrationResponse JSON
+    Note over UI: UI Maps URL link / outputs text into tabs
+```

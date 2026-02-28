@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from app.core.llm_client import LLMClient
 from app.core.database import get_db
 from app.services.db_service import DBService
-from app.models.api_models import EncounterMetadata, OrchestrationResponse
+from app.models.api_models import EncounterMetadata, OrchestrationResponse, DraftResponse, FinalizeRequest
 from app.services.pipeline import ZeroHallucinationPipeline
 from app.services.orchestrator import OrchestratorService
 from app.models.persistence_models import Patient, EHRDocument
@@ -56,59 +56,82 @@ def get_doctors(db: Session = Depends(get_db)):
     """Returns a list of all available doctors."""
     return DBService.get_available_doctors(db)
 
-@app.post("/api/v1/generate-consultation", response_model=OrchestrationResponse)
-async def generate_consultation(
+@app.post("/api/v1/generate-draft", response_model=DraftResponse)
+async def generate_draft(
     patient_id: str = Form(..., description="Used to fetch DB context."),
     doctor_id: str = Form(..., description="Used for referral mapping."),
     encounter_date: str = Form(..., description="ISO 8601 Datetime."),
-    format_id: str = Form("fmt_001", description="Report format ID."),
+    language: str = Form("en", description="Translation language."),
     audio: UploadFile = File(...),
     db: Session = Depends(get_db)
 ):
-    """
-    Orchestrated endpoint: Ingests minimal metadata + audio, fetches context internally, returns PDF/MD links.
-    """
     try:
-        # 1. Save incoming payload to Temp (can be webm, mp4, wav, etc)
         raw_audio_path = f"/tmp/incoming_{patient_id}_raw"
         with open(raw_audio_path, "wb") as buffer:
             buffer.write(await audio.read())
             
         audio_path = f"/tmp/incoming_{patient_id}.wav"
         
-        # Transcode to 16kHz Mono WAV (Strict Azure requirement)
         subprocess.run(
             ["ffmpeg", "-y", "-i", raw_audio_path, "-ar", "16000", "-ac", "1", audio_path],
             check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
         )
         
-        # 2. Run Orchestrator
-        pdf_path, summary_md_path = await state.orchestrator.run_full_extraction(
+        clinical_dict, patient_dict, token_map, full_metadata = await state.orchestrator.generate_draft(
             audio_file_path=audio_path,
-            format_id=format_id,
             db=db,
             patient_id=patient_id,
             doctor_id=doctor_id,
-            encounter_date=encounter_date
+            encounter_date=encounter_date,
+            language=language
         )
         
-        # Read MD summary
-        with open(summary_md_path, "r", encoding="utf-8") as f:
-            summary_content = f.read()
-            
+        return DraftResponse(
+            administrative_metadata=full_metadata,
+            patient_summary_md=patient_dict.get("layman_explanation", ""),
+            clinical_draft_json=clinical_dict,
+            token_map=token_map
+        )
+        
+    except Exception as e:
+        logger.error(f"Draft Generation Failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/v1/finalize-report", response_model=OrchestrationResponse)
+async def finalize_report(request: FinalizeRequest):
+    try:
+        # Reconstruct the metadata payload
+        full_metadata = {
+            "patient_id": request.patient_id,
+            "patient_name": "Unknown", # we can fix this if needed, or pass it from frontend
+            "patient_taj": "Unknown",
+            "doctor_name": "Unknown",
+            "encounter_date": request.encounter_date
+        }
+        
+        # We need the patient dictionary layout for the complete_consultation
+        hydrated_patient = {"layman_explanation": "Finalized document."}
+        
+        pdf_path, summary_md_path = state.orchestrator.complete_consultation(
+            hydrated_clinical=request.edited_clinical_json,
+            hydrated_patient=hydrated_patient,
+            full_metadata=full_metadata,
+            format_id=request.format_id
+        )
+        
         return OrchestrationResponse(
             medical_report_pdf_url=f"/outputs/{pdf_path.split('/')[-1]}",
-            patient_summary_md=summary_content,
+            patient_summary_md="Finalized",
             administrative_metadata={
-                "patient_id": patient_id,
-                "doctor_id": doctor_id,
-                "encounter_date": encounter_date,
-                "format_id": format_id
+                "patient_id": request.patient_id,
+                "doctor_id": request.doctor_id,
+                "encounter_date": request.encounter_date,
+                "format_id": request.format_id
             }
         )
         
     except Exception as e:
-        logger.error(f"Orchestration Failed: {e}", exc_info=True)
+        logger.error(f"Finalization Failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/v1/eeszt/patients")
