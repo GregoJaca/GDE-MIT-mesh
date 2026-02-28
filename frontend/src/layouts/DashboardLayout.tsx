@@ -1,5 +1,5 @@
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Settings, LogOut, Activity, Clock, Bell, ChevronRight, Calendar, User, ChevronDown } from 'lucide-react';
+import { LayoutDashboard, Settings, LogOut, Activity, ChevronRight, Calendar, User, ChevronDown, Bell } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -21,7 +21,6 @@ import {
 import { fetchPatients } from '@/services/patient.service';
 import type { Appointment, MedicalCase, Patient, UserRole } from '@/types';
 
-// ---- Context ----
 interface AppointmentContextType {
     selectedAppointment: Appointment | null;
     setSelectedAppointment: (a: Appointment | null) => void;
@@ -42,25 +41,15 @@ export const AppointmentContext = createContext<AppointmentContextType>({
 
 export const useAppointmentContext = () => useContext(AppointmentContext);
 
-// ---- Status styling helpers ----
-function getCaseStatusStyle(status: string): string {
+function statusDot(status: string) {
     switch (status) {
-        case 'Active': return 'bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800';
-        case 'Closed': return 'bg-slate-100 text-slate-500 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700';
-        default: return 'bg-slate-50 text-slate-600 border-slate-200';
+        case 'Completed': return 'bg-zinc-400';
+        case 'Pending': return 'bg-zinc-600';
+        case 'Review Required': return 'bg-zinc-900 dark:bg-zinc-100';
+        default: return 'bg-zinc-300';
     }
 }
 
-function getAppStatusDot(status: string): string {
-    switch (status) {
-        case 'Completed': return 'bg-emerald-400';
-        case 'Pending': return 'bg-amber-400';
-        case 'Review Required': return 'bg-red-400';
-        default: return 'bg-slate-400';
-    }
-}
-
-// ---- Component ----
 export default function DashboardLayout({ role }: { role: UserRole }) {
     const navigate = useNavigate();
     const location = useLocation();
@@ -74,14 +63,10 @@ export default function DashboardLayout({ role }: { role: UserRole }) {
     const [expandedCaseIds, setExpandedCaseIds] = useState<Set<string>>(new Set());
     const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
 
-    // Load patient list from DB
     useEffect(() => {
-        fetchPatients()
-            .then(setPatients)
-            .catch(console.error);
+        fetchPatients().then(setPatients).catch(console.error);
     }, []);
 
-    // Load cases and appointments from the API when patient changes
     const loadPatientData = useCallback(async (patientId: string) => {
         setIsLoading(true);
         setSelectedAppointment(null);
@@ -89,8 +74,6 @@ export default function DashboardLayout({ role }: { role: UserRole }) {
             const fetchedCases = await fetchCasesByPatient(patientId);
             setCases(fetchedCases);
             setCasesCache(fetchedCases);
-
-            // Fetch appointments for all cases
             const allApps: Appointment[] = [];
             for (const c of fetchedCases) {
                 const apps = await fetchAppointmentsByCase(c.id);
@@ -98,17 +81,15 @@ export default function DashboardLayout({ role }: { role: UserRole }) {
             }
             setAllAppointments(allApps);
             setAppointmentsCache(allApps);
-
-            // Auto-select the first case and appointment
             if (fetchedCases.length > 0) {
                 setExpandedCaseIds(new Set([fetchedCases[0].id]));
-                const firstCaseApps = allApps.filter(a => a.caseId === fetchedCases[0].id);
-                setSelectedAppointment(firstCaseApps[0] || null);
+                const firstApps = allApps.filter(a => a.caseId === fetchedCases[0].id);
+                setSelectedAppointment(firstApps[0] || null);
             } else {
                 setExpandedCaseIds(new Set());
             }
         } catch (err) {
-            console.error('Failed to load patient data:', err);
+            console.error(err);
             setCases([]);
             setAllAppointments([]);
         } finally {
@@ -116,248 +97,207 @@ export default function DashboardLayout({ role }: { role: UserRole }) {
         }
     }, []);
 
-    useEffect(() => {
-        loadPatientData(selectedPatientId);
-    }, [selectedPatientId, loadPatientData]);
+    useEffect(() => { loadPatientData(selectedPatientId); }, [selectedPatientId, loadPatientData]);
 
-    const handlePatientSwitch = (id: string) => {
-        setSelectedPatientIdState(id);
-    };
+    const handlePatientSwitch = (id: string) => setSelectedPatientIdState(id);
 
     const selectedCase = selectedAppointment
         ? cases.find(c => c.id === selectedAppointment.caseId) ?? null
         : null;
 
-    const getAppointmentsForCase = useCallback((caseId: string) => {
-        return allAppointments
+    const getAppointmentsForCase = useCallback((caseId: string) =>
+        allAppointments
             .filter(a => a.caseId === caseId)
-            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-    }, [allAppointments]);
+            .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
+        [allAppointments]);
 
     const toggleCase = (caseId: string) => {
-        setExpandedCaseIds((prev) => {
+        setExpandedCaseIds(prev => {
             const next = new Set(prev);
             next.has(caseId) ? next.delete(caseId) : next.add(caseId);
             return next;
         });
     };
 
-    const navItems = [
-        {
-            label: 'Dashboard',
-            icon: LayoutDashboard,
-            path: role === 'doctor' ? '/doctor' : '/patient',
-        },
-    ];
-
     const selectedPatient = patients.find(p => p.id === selectedPatientId);
-    const profileLabel = role === 'doctor' ? 'Dr. Sarah Miller' : (selectedPatient?.name ?? 'Patient');
-    const profileId = role === 'doctor' ? 'D-99' : selectedPatientId;
+    const isDoctor = role === 'doctor';
 
     return (
-        <AppointmentContext.Provider
-            value={{
-                selectedAppointment,
-                setSelectedAppointment,
-                selectedPatientId,
-                setSelectedPatientId: handlePatientSwitch,
-                selectedCase,
-            }}
-        >
-            <div className="flex h-screen bg-slate-50/50 dark:bg-slate-950 font-sans transition-colors">
+        <AppointmentContext.Provider value={{
+            selectedAppointment, setSelectedAppointment,
+            selectedPatientId, setSelectedPatientId: handlePatientSwitch,
+            selectedCase,
+        }}>
+            <div className="flex h-screen bg-white dark:bg-zinc-950 font-sans">
                 {/* Sidebar */}
-                <aside className="w-72 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col shadow-sm z-10 transition-colors">
+                <aside className="w-64 bg-white dark:bg-zinc-950 border-r border-zinc-200 dark:border-zinc-800 flex flex-col">
                     {/* Logo */}
-                    <div className="h-14 flex items-center px-5 border-b border-slate-100 dark:border-slate-800 shrink-0">
-                        <div className="flex items-center gap-2 text-brand-teal">
-                            <Activity className="w-6 h-6" />
-                            <span className="text-xl font-bold tracking-tight text-brand-plum dark:text-white">MediCore</span>
+                    <div className="h-14 flex items-center px-5 border-b border-zinc-100 dark:border-zinc-900 shrink-0">
+                        <div className="flex items-center gap-2">
+                            <Activity className="w-4 h-4 text-zinc-900 dark:text-zinc-100" strokeWidth={1.5} />
+                            <span className="text-base font-bold tracking-tight text-zinc-900 dark:text-zinc-100 uppercase letter-spacing-wider">
+                                MediCore
+                            </span>
                         </div>
                     </div>
 
                     {/* Nav */}
-                    <nav className="p-3 space-y-1 shrink-0">
-                        {navItems.map((item) => {
-                            const isActive = location.pathname === item.path || location.pathname === item.path + '/';
+                    <nav className="px-3 pt-3 pb-2 shrink-0">
+                        {[{ label: 'Dashboard', icon: LayoutDashboard, path: isDoctor ? '/doctor' : '/patient' }].map(item => {
+                            const isActive = location.pathname === item.path;
                             const Icon = item.icon;
                             return (
                                 <button
                                     key={item.path}
                                     onClick={() => navigate(item.path)}
-                                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all ${isActive
-                                        ? 'bg-brand-teal/10 text-brand-teal shadow-sm'
-                                        : 'text-brand-slate hover:bg-slate-50 hover:text-brand-plum dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white'
+                                    className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-colors ${isActive
+                                        ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 font-semibold'
+                                        : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-zinc-900'
                                         }`}
                                 >
-                                    <Icon className={`w-4 h-4 ${isActive ? 'text-brand-teal' : 'text-slate-400'}`} />
+                                    <Icon className="w-3.5 h-3.5" strokeWidth={1.5} />
                                     {item.label}
                                 </button>
                             );
                         })}
                     </nav>
 
-                    <div className="px-4 py-1 shrink-0">
-                        <div className="border-t border-slate-100 dark:border-slate-800" />
-                    </div>
+                    <div className="mx-3 border-t border-zinc-100 dark:border-zinc-900" />
 
-                    {/* Patient selector — loaded from DB */}
-                    <div className="px-4 pb-2 shrink-0">
-                        <p className="text-[11px] font-bold tracking-widest text-slate-400 uppercase mb-2 flex items-center gap-2">
-                            <User className="w-3.5 h-3.5" />
-                            Active Patient
+                    {/* Patient selector */}
+                    <div className="px-3 pt-3 pb-2 shrink-0">
+                        <p className="text-[10px] font-semibold tracking-widest text-zinc-400 dark:text-zinc-600 uppercase mb-2 px-1">
+                            Patient
                         </p>
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <button className="w-full flex items-center justify-between gap-2 px-3 py-2.5 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-brand-teal/50 hover:bg-brand-teal/5 transition-all text-left group">
-                                    <div className="flex items-center gap-2 min-w-0">
-                                        <div className="w-7 h-7 rounded-full bg-brand-teal/15 flex items-center justify-center shrink-0">
-                                            <User className="w-3.5 h-3.5 text-brand-teal" />
-                                        </div>
-                                        <div className="min-w-0">
-                                            <p className="text-sm font-semibold text-slate-700 dark:text-slate-200 truncate leading-tight">
-                                                {selectedPatient?.name ?? selectedPatientId}
-                                            </p>
-                                            <p className="text-[10px] text-slate-400 font-mono">{selectedPatientId}</p>
-                                        </div>
+                                <button className="w-full flex items-center justify-between gap-2 px-3 py-2 rounded-md border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors text-left">
+                                    <div className="min-w-0">
+                                        <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-200 truncate">
+                                            {selectedPatient?.name ?? selectedPatientId}
+                                        </p>
+                                        <p className="text-[10px] text-zinc-400 font-mono">{selectedPatientId}</p>
                                     </div>
-                                    <ChevronDown className="w-4 h-4 text-slate-400 group-hover:text-brand-teal transition-colors shrink-0" />
+                                    <ChevronDown className="w-3.5 h-3.5 text-zinc-400 shrink-0" strokeWidth={1.5} />
                                 </button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="start" className="w-64 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl rounded-xl p-1">
-                                <DropdownMenuLabel className="text-[10px] font-bold uppercase tracking-widest text-slate-400 px-2 py-1.5">
-                                    Select Patient (from DB)
+                            <DropdownMenuContent align="start" className="w-60 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-lg rounded-lg p-1">
+                                <DropdownMenuLabel className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400 px-2 py-1.5">
+                                    Select Patient
                                 </DropdownMenuLabel>
-                                <DropdownMenuSeparator className="bg-slate-100 dark:bg-slate-800 mx-1" />
-                                {patients.length === 0 ? (
-                                    <div className="px-3 py-2 text-xs text-slate-400">Loading patients…</div>
-                                ) : patients.map((p) => (
-                                    <DropdownMenuItem
-                                        key={p.id}
-                                        onClick={() => handlePatientSwitch(p.id)}
-                                        className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg cursor-pointer transition-colors ${p.id === selectedPatientId
-                                            ? 'bg-brand-teal/10 text-brand-teal font-semibold'
-                                            : 'dark:text-slate-200 dark:focus:bg-slate-800'
-                                            }`}
-                                    >
-                                        <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-[10px] font-bold ${p.id === selectedPatientId ? 'bg-brand-teal text-white' : 'bg-slate-100 dark:bg-slate-700 text-slate-500'}`}>
-                                            {p.name.charAt(0)}
-                                        </div>
-                                        <div className="min-w-0">
-                                            <p className="text-sm truncate">{p.name}</p>
-                                            <p className="text-[10px] font-mono text-slate-400">{p.id}</p>
-                                        </div>
-                                        {p.id === selectedPatientId && <span className="ml-auto text-brand-teal text-xs">✓</span>}
-                                    </DropdownMenuItem>
-                                ))}
+                                <DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-800 mx-1" />
+                                {patients.length === 0
+                                    ? <div className="px-3 py-2 text-xs text-zinc-400">Loading…</div>
+                                    : patients.map(p => (
+                                        <DropdownMenuItem
+                                            key={p.id}
+                                            onClick={() => handlePatientSwitch(p.id)}
+                                            className={`flex items-center gap-2.5 px-2.5 py-2 rounded-md cursor-pointer transition-colors text-sm ${p.id === selectedPatientId
+                                                ? 'bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 font-semibold'
+                                                : 'text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800'
+                                                }`}
+                                        >
+                                            <div className="min-w-0 flex-1">
+                                                <p className="truncate">{p.name}</p>
+                                                <p className="text-[10px] font-mono opacity-60">{p.id}</p>
+                                            </div>
+                                        </DropdownMenuItem>
+                                    ))
+                                }
                             </DropdownMenuContent>
                         </DropdownMenu>
                     </div>
 
-                    {/* Case explorer */}
-                    <div className="px-4 pb-2 shrink-0">
-                        <h3 className="text-[11px] font-bold tracking-widest text-slate-400 uppercase flex items-center gap-2">
-                            {role === 'doctor' ? <Clock className="w-3.5 h-3.5" /> : <Calendar className="w-3.5 h-3.5" />}
-                            {role === 'doctor' ? 'Patient Cases' : 'My Cases'}
-                            {!isLoading && (
-                                <span className="ml-auto text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded-full font-bold">
-                                    {cases.length}
-                                </span>
-                            )}
-                        </h3>
+                    <div className="mx-3 border-t border-zinc-100 dark:border-zinc-900" />
+
+                    {/* Cases */}
+                    <div className="px-3 pt-3 pb-1 shrink-0">
+                        <p className="text-[10px] font-semibold tracking-widest text-zinc-400 dark:text-zinc-600 uppercase px-1 flex items-center justify-between">
+                            <span className="flex items-center gap-1.5">
+                                <Calendar className="w-3 h-3" strokeWidth={1.5} />
+                                Cases
+                            </span>
+                            {!isLoading && <span className="tabular-nums">{cases.length}</span>}
+                        </p>
                     </div>
 
                     <ScrollArea className="flex-1 min-h-0">
-                        <div className="px-3 pb-3 space-y-1.5">
+                        <div className="px-3 pb-3 space-y-0.5">
                             {isLoading ? (
                                 <div className="flex items-center justify-center py-8">
-                                    <div className="w-5 h-5 border-2 border-brand-teal border-t-transparent rounded-full animate-spin" />
+                                    <div className="w-4 h-4 border border-zinc-300 dark:border-zinc-700 border-t-zinc-700 dark:border-t-zinc-300 rounded-full animate-spin" />
                                 </div>
-                            ) : cases.map((medCase) => {
+                            ) : cases.map(medCase => {
                                 const isExpanded = expandedCaseIds.has(medCase.id);
                                 const caseApps = getAppointmentsForCase(medCase.id);
                                 const isActiveCase = selectedCase?.id === medCase.id;
 
                                 return (
-                                    <div key={medCase.id} className="group">
+                                    <div key={medCase.id}>
                                         <button
                                             onClick={() => toggleCase(medCase.id)}
-                                            className={`w-full text-left px-3 py-2.5 rounded-xl flex items-center gap-2.5 transition-all duration-200 relative ${isActiveCase
-                                                ? 'bg-gradient-to-r from-brand-teal/10 to-brand-mint/10 dark:from-brand-teal/15 dark:to-brand-mint/5 shadow-sm'
-                                                : 'hover:bg-slate-50 dark:hover:bg-slate-800/60'
+                                            className={`w-full text-left px-2.5 py-2 rounded-md flex items-center gap-2 transition-colors ${isActiveCase
+                                                ? 'bg-zinc-100 dark:bg-zinc-900'
+                                                : 'hover:bg-zinc-50 dark:hover:bg-zinc-900/60'
                                                 }`}
                                         >
-                                            <div className={`transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}>
-                                                <ChevronRight className={`w-3.5 h-3.5 ${isActiveCase ? 'text-brand-teal' : 'text-slate-400'}`} />
-                                            </div>
-                                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-base shrink-0 transition-all duration-200 ${isActiveCase
-                                                ? 'bg-gradient-to-br from-brand-teal/20 to-brand-lime/20 shadow-sm'
-                                                : 'bg-slate-100 dark:bg-slate-800 group-hover:bg-slate-200/80 dark:group-hover:bg-slate-700'
-                                                }`}>
-                                                {medCase.icon || '📋'}
-                                            </div>
+                                            <ChevronRight
+                                                className={`w-3 h-3 text-zinc-400 shrink-0 transition-transform duration-150 ${isExpanded ? 'rotate-90' : ''}`}
+                                                strokeWidth={1.5}
+                                            />
                                             <div className="flex-1 min-w-0">
-                                                <span className={`text-sm font-semibold truncate block leading-tight ${isActiveCase ? 'text-brand-plum dark:text-brand-lime' : 'text-slate-700 dark:text-slate-300'
-                                                    }`}>
+                                                <p className={`text-sm truncate leading-tight ${isActiveCase ? 'font-semibold text-zinc-900 dark:text-zinc-100' : 'text-zinc-600 dark:text-zinc-400'}`}>
                                                     {medCase.title}
-                                                </span>
-                                                <div className="flex items-center gap-2 mt-0.5">
-                                                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold border ${getCaseStatusStyle(medCase.status)}`}>
-                                                        {medCase.status}
-                                                    </span>
-                                                    <span className="text-[10px] text-slate-400 dark:text-slate-500 tabular-nums">
-                                                        {caseApps.length} visit{caseApps.length !== 1 ? 's' : ''}
-                                                    </span>
-                                                </div>
+                                                </p>
+                                                <p className="text-[10px] text-zinc-400 dark:text-zinc-600 mt-0.5">
+                                                    {medCase.status} &middot; {caseApps.length} visit{caseApps.length !== 1 ? 's' : ''}
+                                                </p>
                                             </div>
                                         </button>
 
-                                        <div className={`overflow-hidden transition-all duration-300 ease-in-out ${isExpanded ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'}`}>
-                                            <div className="ml-4 pl-4 border-l-2 border-slate-100 dark:border-slate-800 mt-1 mb-1 space-y-0.5">
-                                                {caseApps.map((app) => {
-                                                    const isSelected = selectedAppointment?.id === app.id;
+                                        {isExpanded && (
+                                            <div className="ml-5 pl-3 border-l border-zinc-100 dark:border-zinc-900 mt-0.5 mb-1 space-y-0.5">
+                                                {caseApps.map(app => {
+                                                    const isSel = selectedAppointment?.id === app.id;
                                                     return (
                                                         <button
                                                             key={app.id}
                                                             onClick={() => setSelectedAppointment(app)}
-                                                            className={`w-full text-left px-3 py-2 rounded-lg flex items-center gap-3 transition-all duration-150 relative group/item ${isSelected ? 'bg-brand-teal/8 dark:bg-brand-teal/10' : 'hover:bg-slate-50 dark:hover:bg-slate-800/40'
+                                                            className={`w-full text-left px-2.5 py-1.5 rounded-md flex items-center gap-2.5 transition-colors ${isSel
+                                                                ? 'bg-zinc-900 dark:bg-zinc-100'
+                                                                : 'hover:bg-zinc-50 dark:hover:bg-zinc-900'
                                                                 }`}
                                                         >
-                                                            {isSelected && (
-                                                                <div className="absolute left-0 top-1.5 bottom-1.5 w-[2.5px] bg-brand-teal rounded-r-full" />
-                                                            )}
-                                                            <div className={`w-2 h-2 rounded-full shrink-0 ${getAppStatusDot(app.status)} ${isSelected ? 'ring-2 ring-brand-teal/20' : ''}`} />
+                                                            <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${statusDot(app.status)}`} />
                                                             <div className="flex-1 min-w-0">
-                                                                <span className={`text-[13px] font-medium truncate block leading-tight ${isSelected
-                                                                    ? 'text-brand-teal dark:text-brand-lime'
-                                                                    : 'text-slate-600 dark:text-slate-400 group-hover/item:text-slate-800 dark:group-hover/item:text-slate-200'
-                                                                    }`}>
+                                                                <p className={`text-xs font-medium truncate ${isSel ? 'text-white dark:text-zinc-900' : 'text-zinc-600 dark:text-zinc-400'}`}>
                                                                     {app.topic}
-                                                                </span>
-                                                                <span className="text-[11px] text-slate-400 dark:text-slate-500 tabular-nums">
+                                                                </p>
+                                                                <p className={`text-[10px] tabular-nums ${isSel ? 'text-zinc-300 dark:text-zinc-600' : 'text-zinc-400'}`}>
                                                                     {new Date(app.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
-                                                                </span>
+                                                                </p>
                                                             </div>
                                                         </button>
                                                     );
                                                 })}
                                             </div>
-                                        </div>
+                                        )}
                                     </div>
                                 );
                             })}
                             {cases.length === 0 && !isLoading && (
-                                <p className="text-xs text-center text-slate-400 py-4">No cases found for this patient</p>
+                                <p className="text-xs text-zinc-400 text-center py-6">No cases found</p>
                             )}
                         </div>
                     </ScrollArea>
 
                     {/* Sign out */}
-                    <div className="p-3 border-t border-slate-100 dark:border-slate-800 shrink-0">
+                    <div className="px-3 py-3 border-t border-zinc-100 dark:border-zinc-900 shrink-0">
                         <button
                             onClick={() => navigate('/')}
-                            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-red-50 dark:hover:bg-red-950/30 hover:text-red-600 transition-colors"
+                            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-sm text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors"
                         >
-                            <LogOut className="w-4 h-4 text-slate-400" />
+                            <LogOut className="w-3.5 h-3.5" strokeWidth={1.5} />
                             Sign Out
                         </button>
                     </div>
@@ -365,81 +305,65 @@ export default function DashboardLayout({ role }: { role: UserRole }) {
 
                 {/* Main */}
                 <main className="flex-1 flex flex-col h-screen overflow-hidden">
-                    <header className="h-14 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-8 shrink-0 transition-colors">
-                        <h2 className="text-lg font-semibold text-brand-plum dark:text-brand-lime capitalize">
-                            {role === 'doctor' ? 'Provider Portal' : 'Patient Portal'}
-                        </h2>
-                        <div className="flex items-center gap-4">
-                            {/* Settings */}
+                    <header className="h-14 bg-white dark:bg-zinc-950 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between px-8 shrink-0">
+                        <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 uppercase tracking-widest">
+                            {isDoctor ? 'Clinical Workspace' : 'Patient Portal'}
+                        </p>
+                        <div className="flex items-center gap-3">
                             <Dialog>
                                 <DialogTrigger asChild>
-                                    <button
-                                        id="settings-btn"
-                                        className="p-2 text-slate-400 dark:text-slate-300 hover:bg-brand-mint/10 hover:text-brand-teal rounded-full transition-colors focus:outline-none"
-                                    >
-                                        <Settings className="w-5 h-5" />
+                                    <button className="p-1.5 text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 rounded-md hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors">
+                                        <Settings className="w-4 h-4" strokeWidth={1.5} />
                                     </button>
                                 </DialogTrigger>
-                                <DialogContent className="sm:max-w-[425px]">
+                                <DialogContent className="sm:max-w-[400px] bg-white dark:bg-zinc-950 border-zinc-200 dark:border-zinc-800">
                                     <DialogHeader>
-                                        <DialogTitle className="text-brand-plum dark:text-white">Settings</DialogTitle>
-                                        <DialogDescription className="text-slate-500 dark:text-slate-400">
-                                            Manage your application preferences and display settings.
-                                        </DialogDescription>
+                                        <DialogTitle className="text-zinc-900 dark:text-zinc-100 font-semibold">Settings</DialogTitle>
+                                        <DialogDescription className="text-zinc-500">Appearance preferences.</DialogDescription>
                                     </DialogHeader>
-                                    <div className="grid gap-4 py-4 mt-2">
+                                    <div className="py-4">
                                         <div className="flex items-center justify-between">
-                                            <div className="space-y-0.5">
-                                                <Label htmlFor="dark-mode" className="text-base text-slate-900 dark:text-white">Dark Mode</Label>
-                                                <p className="text-sm text-slate-500 dark:text-slate-400">Toggle between light and dark themes.</p>
+                                            <div>
+                                                <Label htmlFor="dark-mode" className="text-sm font-medium text-zinc-900 dark:text-zinc-100">Dark mode</Label>
                                             </div>
                                             <Switch
                                                 id="dark-mode"
                                                 checked={theme === 'dark'}
-                                                onCheckedChange={(checked) => setTheme(checked ? 'dark' : 'light')}
+                                                onCheckedChange={c => setTheme(c ? 'dark' : 'light')}
                                             />
                                         </div>
                                     </div>
                                 </DialogContent>
                             </Dialog>
 
-                            {/* Profile */}
                             <DropdownMenu>
-                                <DropdownMenuTrigger id="profile-btn" className="focus:outline-none">
-                                    <div className="w-9 h-9 rounded-full bg-brand-lime/20 flex items-center justify-center text-brand-teal font-bold border border-brand-lime/50 hover:bg-brand-lime/40 cursor-pointer transition-colors">
-                                        {role === 'doctor' ? 'Dr' : 'Pt'}
+                                <DropdownMenuTrigger className="focus:outline-none">
+                                    <div className="w-8 h-8 rounded-md bg-zinc-900 dark:bg-zinc-100 flex items-center justify-center">
+                                        <User className="w-3.5 h-3.5 text-white dark:text-zinc-900" strokeWidth={1.5} />
                                     </div>
                                 </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="w-56 bg-white dark:bg-slate-900 dark:border-slate-800">
-                                    <DropdownMenuLabel className="font-normal">
-                                        <div className="flex flex-col space-y-1">
-                                            <p className="text-sm font-medium text-brand-plum dark:text-brand-lime">{profileLabel}</p>
-                                            <p className="text-xs text-slate-500 dark:text-slate-400">{role === 'doctor' ? 'Provider' : 'Patient'} ID: {profileId}</p>
-                                        </div>
+                                <DropdownMenuContent align="end" className="w-52 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 shadow-lg">
+                                    <DropdownMenuLabel className="text-xs text-zinc-400 font-normal">
+                                        {isDoctor ? 'Dr. Sarah Miller — D-99' : selectedPatient?.name}
                                     </DropdownMenuLabel>
-                                    <DropdownMenuSeparator className="dark:bg-slate-800" />
-                                    <DropdownMenuItem className="cursor-pointer dark:focus:bg-slate-800 dark:text-slate-200">
-                                        <User className="mr-2 h-4 w-4" /><span>Profile</span>
+                                    <DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-800" />
+                                    <DropdownMenuItem className="text-sm cursor-pointer dark:text-zinc-300 dark:focus:bg-zinc-800">
+                                        <Bell className="mr-2 h-3.5 w-3.5" strokeWidth={1.5} /><span>Notifications</span>
                                     </DropdownMenuItem>
-                                    <DropdownMenuItem className="cursor-pointer dark:focus:bg-slate-800 dark:text-slate-200">
-                                        <Bell className="mr-2 h-4 w-4" /><span>Notifications</span>
-                                    </DropdownMenuItem>
-                                    <DropdownMenuSeparator className="dark:bg-slate-800" />
+                                    <DropdownMenuSeparator className="bg-zinc-100 dark:bg-zinc-800" />
                                     <DropdownMenuItem
-                                        className="cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950/50"
+                                        className="text-sm cursor-pointer text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-950/30"
                                         onClick={() => navigate('/')}
                                     >
-                                        <LogOut className="mr-2 h-4 w-4" /><span>Sign Out</span>
+                                        <LogOut className="mr-2 h-3.5 w-3.5" strokeWidth={1.5} /><span>Sign Out</span>
                                     </DropdownMenuItem>
                                 </DropdownMenuContent>
                             </DropdownMenu>
                         </div>
                     </header>
 
-                    <div className="flex-1 overflow-auto p-6">
-                        <div className="h-full animate-in fade-in duration-300">
-                            <Outlet />
-                        </div>
+                    <div className="flex-1 overflow-auto p-6 bg-zinc-50 dark:bg-zinc-950">
+                        <Outlet />
                     </div>
                 </main>
             </div>
