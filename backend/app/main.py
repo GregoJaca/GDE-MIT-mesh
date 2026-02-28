@@ -72,6 +72,19 @@ def get_doctors(db: Session = Depends(get_db)):
     """Returns a list of all available doctors."""
     return DBService.get_available_doctors(db)
 
+@app.get("/api/v1/ehr/{system_doc_id}")
+def get_ehr_document(system_doc_id: str, db: Session = Depends(get_db)):
+    """Fetches full content of a specific EHR document."""
+    doc = db.query(EHRDocument).filter(EHRDocument.id == system_doc_id).first()
+    if not doc:
+        raise HTTPException(status_code=404, detail="Document not found")
+    return {
+        "system_doc_id": doc.id,
+        "doc_type": doc.doc_type,
+        "date": str(doc.date),
+        "content": doc.content
+    }
+
 @app.post("/api/v1/generate-draft", response_model=DraftResponse)
 async def generate_draft(
     patient_id: str = Form(..., description="Used to fetch DB context."),
