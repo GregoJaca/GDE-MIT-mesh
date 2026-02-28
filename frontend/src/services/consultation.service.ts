@@ -65,3 +65,11 @@ export async function transcribeAudio(audioBlob: Blob): Promise<{ transcript: st
     }
     return res.json();
 }
+
+export async function getEhrDocument(systemDocId: string): Promise<{ system_doc_id: string; doc_type: string; date: string; content: string }> {
+    const res = await fetch(`${APP_CONFIG.API.BASE_URL}/ehr/${systemDocId}`);
+    if (!res.ok) {
+        throw new Error(`Failed to fetch EHR: ${res.status}`);
+    }
+    return res.json();
+}

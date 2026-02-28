@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { FileText, Mic, Square, Pause, Play, Globe, CheckCircle2, RotateCcw, Info } from 'lucide-react';
 import { useAppointmentContext } from '@/layouts/DashboardLayout';
-import { generateDraft, finalizeReport } from '@/services/consultation.service';
+import { generateDraft, finalizeReport, getEhrDocument } from '@/services/consultation.service';
 import { fetchPatients, fetchPatientContext } from '@/services/patient.service';
 import { updateAppointmentReport } from '@/stores/appointment.store';
 import { setGeneratedPdf } from '@/stores/pdf.store';
@@ -177,6 +177,11 @@ export default function DoctorDashboard() {
     const [editedJson, setEditedJson] = useState<ClinicalDraftJson | null>(null);
     const [finalPdfUrl, setFinalPdfUrl] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
+
+    // EHR Modal State
+    const [ehrModalDoc, setEhrModalDoc] = useState<{ system_doc_id: string; date: string; doc_type: string; content: string } | null>(null);
+    const [isEhrModalLoading, setIsEhrModalLoading] = useState(false);
+
     const recorder = useVoiceRecorder();
     const transcriptEndRef = useRef<HTMLDivElement | null>(null);
 
@@ -198,6 +203,21 @@ export default function DoctorDashboard() {
         if (selectedPatientId)
             fetchPatientContext(selectedPatientId).then(setPatientContext).catch(console.error);
     }, [selectedPatientId]);
+
+    const handleEhrClick = async (systemDocId: string) => {
+        try {
+            setIsEhrModalLoading(true);
+            setEhrModalDoc({ system_doc_id: systemDocId, date: '...', doc_type: '...', content: '' }); // stub
+            const doc = await getEhrDocument(systemDocId);
+            setEhrModalDoc(doc);
+        } catch (e: any) {
+            console.error(e);
+            alert(`Error loading EHR context: ${e.message}`);
+            setEhrModalDoc(null);
+        } finally {
+            setIsEhrModalLoading(false);
+        }
+    };
 
     const handleStop = async () => {
         if (recorder.recState === 'idle') return;
@@ -433,11 +453,17 @@ export default function DoctorDashboard() {
                             <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-400 mb-1.5">
                                 EHR Context — {patientContext.context_documents.length} records loaded
                             </p>
-                            <div className="flex flex-wrap gap-x-3 gap-y-0.5">
+                            <div className="flex flex-wrap gap-2 mt-2 mb-1">
                                 {patientContext.context_documents.map(d => (
-                                    <span key={d.system_doc_id} className="text-[10px] font-mono text-zinc-400">
-                                        {d.system_doc_id} · {d.document_type}
-                                    </span>
+                                    <button
+                                        key={d.system_doc_id}
+                                        onClick={() => handleEhrClick(d.system_doc_id)}
+                                        className="inline-flex items-center px-2.5 py-1 border border-zinc-900 rounded-md text-[10px] font-mono text-zinc-700 bg-white hover:bg-zinc-900 hover:text-white group transition-colors shadow-sm cursor-pointer"
+                                    >
+                                        <span className="font-bold text-zinc-900 group-hover:text-white mr-1.5 transition-colors">{d.system_doc_id}</span>
+                                        <span className="text-zinc-300 group-hover:text-zinc-600 mr-1.5 transition-colors">|</span>
+                                        <span className="text-zinc-500 group-hover:text-zinc-300 transition-colors uppercase tracking-wider">{d.document_type}</span>
+                                    </button>
                                 ))}
                             </div>
                         </div>
@@ -561,6 +587,40 @@ export default function DoctorDashboard() {
                     </div>
                 </div>
             </div>
+
+            {/* EHR Context Modal Overlay */}
+            {ehrModalDoc && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/20 backdrop-blur-sm"
+                    onClick={() => setEhrModalDoc(null)}>
+                    <div className="w-full max-w-2xl max-h-[85vh] flex flex-col bg-white border border-zinc-200 rounded-xl shadow-2xl overflow-hidden"
+                        onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-100 bg-zinc-50/50">
+                            <div>
+                                <h3 className="text-sm font-bold text-zinc-900 font-mono tracking-tight">{ehrModalDoc.system_doc_id}</h3>
+                                <p className="text-xs text-zinc-500 font-medium uppercase tracking-widest mt-0.5">
+                                    {ehrModalDoc.date !== '...' ? ehrModalDoc.date + ' · ' + ehrModalDoc.doc_type : 'Loading Document Context...'}
+                                </p>
+                            </div>
+                            <button onClick={() => setEhrModalDoc(null)} className="p-2 text-zinc-400 hover:text-zinc-900 transition-colors">
+                                <Square className="w-4 h-4" />
+                            </button>
+                        </div>
+                        <div className="p-6 overflow-y-auto bg-white min-h-[150px] relative">
+                            {isEhrModalLoading ? (
+                                <div className="absolute inset-0 flex items-center justify-center bg-white/80">
+                                    <span className="w-5 h-5 border-2 border-zinc-900 border-t-transparent rounded-full animate-spin" />
+                                </div>
+                            ) : (
+                                <div className="prose prose-sm prose-zinc max-w-none 
+                                              prose-headings:font-semibold prose-headings:tracking-tight 
+                                              prose-p:leading-relaxed prose-a:text-zinc-900 prose-a:underline hover:prose-a:text-zinc-600">
+                                    <EesztMarkdown content={ehrModalDoc.content || '*Document body is empty.*'} />
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
@@ -661,6 +721,7 @@ function DraftReview({ draft, editedJson, onUpdate, onApprove }: {
                 <CheckCircle2 className="w-3.5 h-3.5" strokeWidth={1.5} />
                 Approve and generate PDF
             </button>
+
         </div>
     );
 }
