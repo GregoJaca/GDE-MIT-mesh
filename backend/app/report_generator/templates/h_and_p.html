@@ -6,35 +6,38 @@
     <title>History and Physical Template</title>
     <style>
         body {
-            font-family: 'Georgia', serif;
+            font-family: 'Times New Roman', Times, serif;
             margin: 40px;
-            color: #2c3e50;
+            color: #000;
             line-height: 1.5;
         }
 
         h1.main-title {
             text-align: center;
-            border-bottom: 2px solid #8e44ad;
-            color: #8e44ad;
+            border-bottom: 2px solid #000;
+            color: #000;
             font-size: 20pt;
-            padding-bottom: 15px;
+            padding-bottom: 10px;
             text-transform: uppercase;
             letter-spacing: 2px;
+            margin-bottom: 30px;
         }
 
         .hp-section {
             display: flex;
             margin-bottom: 20px;
+            border-bottom: 1px solid #f0f0f0;
+            padding-bottom: 15px;
         }
 
         .hp-label {
             width: 150px;
             font-weight: bold;
-            color: #8e44ad;
+            color: #000;
             text-transform: uppercase;
-            font-size: 10pt;
+            font-size: 9pt;
             padding-right: 20px;
-            border-right: 1px solid #ddd;
+            border-right: 2px solid #000;
             margin-right: 20px;
         }
 
@@ -42,41 +45,55 @@
             flex: 1;
             font-size: 11pt;
             white-space: pre-line;
-            font-family: 'Helvetica Neue', Arial, sans-serif;
-            color: #34495e;
+            color: #000;
         }
 
         ul.inline-list {
             margin: 0;
-            padding-left: 20px;
+            padding-left: 15px;
         }
 
         .vitals-box {
-            background-color: #f9f9f9;
-            padding: 15px;
-            border: 1px solid #ecf0f1;
-            border-radius: 5px;
+            background-color: #fff;
+            padding: 10px;
+            border: 1px solid #000;
         }
 
         .vital-entry {
             display: inline-block;
-            margin-right: 15px;
+            margin-right: 20px;
             margin-bottom: 5px;
         }
 
         .v-label {
-            color: #7f8c8d;
-            font-size: 9pt;
+            color: #555;
+            font-size: 8pt;
+            text-transform: uppercase;
+            font-weight: bold;
         }
 
         .v-value {
             font-weight: bold;
-            color: #c0392b;
+            color: #000;
+            font-size: 11pt;
         }
 
         .no-data {
-            color: #95a5a6;
+            color: #888;
             font-style: italic;
+        }
+
+        .sub-block {
+            margin-top: 15px;
+            padding-top: 10px;
+            border-top: 1px dotted #000;
+        }
+
+        .sub-title {
+            font-weight: bold;
+            text-decoration: underline;
+            margin-bottom: 5px;
+            display: block;
         }
     </style>
 </head>
@@ -101,7 +118,7 @@
 
     <!-- 2. Medical History -->
     <div class="hp-section">
-        <div class="hp-label">Past Medical History</div>
+        <div class="hp-label">Past Med History</div>
         <div class="hp-content">
             {% set pmh = dynamic_data.get('past_medical_history', []) %}
             {% if pmh %}
@@ -137,14 +154,14 @@
     </div>
     <div class="hp-section">
         <div class="hp-label">Allergies</div>
-        <div class="hp-content" style="color: #e74c3c; font-weight: bold;">
+        <div class="hp-content" style="font-weight: bold; text-decoration: underline;">
             {% set allergies = dynamic_data.get('allergies', []) %}
             {% if allergies %}
             <ul class="inline-list">
                 {% for alg in allergies %}<li>{{ alg }}</li>{% endfor %}
             </ul>
             {% else %}
-            <span class="no-data">Not provided</span>
+            <span class="no-data">None Reported</span>
             {% endif %}
         </div>
     </div>
@@ -152,28 +169,31 @@
     <!-- 4. Vitals & Physical Exam -->
     <div class="hp-section">
         <div class="hp-label">Objective</div>
-        <div class="hp-content vitals-box">
-            {% set vitals = dynamic_data.get('vital_signs', {}) %}
-            {% if vitals %}
-            {% for k, v in vitals.items() %}
-            <div class="vital-entry">
-                <span class="v-label">{{ k|replace('_', ' ')|title }}:</span>
-                <span class="v-value">{{ v }}</span>
+        <div class="hp-content">
+            <div class="vitals-box">
+                {% set vitals = dynamic_data.get('vital_signs', {}) %}
+                {% if vitals %}
+                {% for k, v in vitals.items() %}
+                <div class="vital-entry">
+                    <span class="v-label">{{ k|replace('_', ' ')|title }}:</span>
+                    <span class="v-value">{{ v }}</span>
+                </div>
+                {% endfor %}
+                {% else %}
+                <span class="no-data">No vitals provided</span>
+                {% endif %}
             </div>
-            {% endfor %}
-            {% else %}
-            <span class="no-data">No vitals provided</span>
-            {% endif %}
 
-            <div style="margin-top: 15px; border-top: 1px dotted #ccc; padding-top: 15px;">
-                <strong>Physical Exam:</strong><br>
+            <div class="sub-block">
+                <span class="sub-title">Physical Examination</span>
                 {{ dynamic_data.get('physical_exam', '<span class="no-data">Not provided</span>')|safe }}
             </div>
-            <div style="margin-top: 15px; border-top: 1px dotted #ccc; padding-top: 15px;">
-                <strong>Diagnostic Results:</strong><br>
+
+            <div class="sub-block">
+                <span class="sub-title">Diagnostic Results</span>
                 {% set dx = dynamic_data.get('diagnostic_results', []) %}
                 {% if dx and dx is iterable and dx is not string and dx[0] is mapping %}
-                <ul class="inline-list">
+                <ul class="inline-list" style="margin-top: 5px;">
                     {% for d in dx %}<li><strong>{{ d.test_name }}</strong>: {{ d.finding_summary }}</li>{% endfor %}
                 </ul>
                 {% else %}
@@ -185,24 +205,30 @@
 
     <!-- 5. A & P -->
     <div class="hp-section">
-        <div class="hp-label" style="color: #27ae60;">Assessment</div>
-        <div class="hp-content">{{ dynamic_data.get('assessment', '<span class="no-data">Not provided</span>')|safe }}
+        <div class="hp-label">Assessment</div>
+        <div class="hp-content" style="font-weight: bold;">
+            {{ dynamic_data.get('assessment', '<span class="no-data">Not provided</span>')|safe }}
         </div>
     </div>
-    <div class="hp-section">
-        <div class="hp-label" style="color: #2980b9;">Plan</div>
+    <div class="hp-section" style="border-bottom: none;">
+        <div class="hp-label">Plan</div>
         <div class="hp-content">
             {% set plan_data = dynamic_data.get('plan', []) %}
             {% if plan_data and plan_data is iterable and plan_data is not string and plan_data[0] is mapping %}
             <ol style="margin-top: 0; padding-left: 20px;">
-                {% for p in plan_data %}<li>{{ p.action_item }} (<em>{{ p.type|replace('_', ' ')|title }}</em>)</li>{%
-                endfor %}
+                {% for p in plan_data %}
+                <li><strong>{{ p.action_item }}</strong> (<em>{{ p.type|replace('_', ' ')|title }}</em>)</li>
+                {% endfor %}
             </ol>
             {% else %}
             {{ dynamic_data.get('plan', '<span class="no-data">Not provided</span>')|safe }}
             {% endif %}
         </div>
     </div>
+
+</body>
+
+</html>
 
 </body>
 

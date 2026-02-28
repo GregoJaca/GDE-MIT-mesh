@@ -6,70 +6,78 @@
     <title>SOAP Note Template</title>
     <style>
         body {
-            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            font-family: 'Times New Roman', Times, serif;
             margin: 40px;
-            color: #333;
-            line-height: 1.6;
+            color: #000;
+            line-height: 1.5;
         }
 
         .section {
-            margin-bottom: 25px;
-            padding: 15px;
-            background-color: #f8f9fa;
-            border-left: 5px solid #3498db;
-            border-radius: 4px;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #eee;
         }
 
         .section-title {
-            color: #2c3e50;
+            color: #000;
             margin-top: 0;
             font-size: 14pt;
-            border-bottom: 1px solid #ddd;
-            padding-bottom: 5px;
-            margin-bottom: 15px;
+            font-weight: bold;
             text-transform: uppercase;
             letter-spacing: 1px;
+            border-bottom: 2px solid #000;
+            display: inline-block;
+            margin-bottom: 15px;
         }
 
         .content {
             font-size: 11pt;
-            color: #555;
+            color: #000;
             white-space: pre-line;
         }
 
-        ul {
-            margin: 5px 0;
-            padding-left: 20px;
+        .sub-header {
+            font-size: 11pt;
+            font-weight: bold;
+            margin-bottom: 5px;
+            text-decoration: underline;
         }
 
         .vital-grid {
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 10px;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-top: 10px;
         }
 
         .vital-item {
-            background: #fff;
-            padding: 8px;
-            border: 1px solid #eee;
-            border-radius: 3px;
+            border-left: 2px solid #000;
+            padding-left: 10px;
         }
 
         .vital-label {
             font-weight: bold;
-            color: #7f8c8d;
             font-size: 9pt;
+            text-transform: uppercase;
+            color: #555;
+            display: block;
         }
 
         .vital-value {
             font-weight: bold;
-            color: #2c3e50;
-            display: block;
+            font-size: 11pt;
+            color: #000;
         }
 
         .no-data {
-            color: #95a5a6;
+            color: #888;
             font-style: italic;
+        }
+
+        ol,
+        ul {
+            margin-top: 5px;
+            padding-left: 20px;
         }
     </style>
 </head>
@@ -79,22 +87,20 @@
     {% include '_header.html' %}
 
     <div class="section">
-        <h2 class="section-title">Subjective (S)</h2>
+        <h2 class="section-title">I. Subjective</h2>
         <div class="content">
-            <strong>Chief Complaint:</strong><br>
+            <div class="sub-header">Chief Complaint</div>
             {{ dynamic_data.get('chief_complaint', '<span class="no-data">Not provided</span>')|safe }}
 
-            <br><br>
-
-            <strong>History of Present Illness:</strong><br>
+            <div class="sub-header" style="margin-top: 15px;">History of Present Illness</div>
             {{ dynamic_data.get('history_of_present_illness', '<span class="no-data">Not provided</span>')|safe }}
         </div>
     </div>
 
-    <div class="section" style="border-left-color: #e74c3c;">
-        <h2 class="section-title">Objective (O)</h2>
+    <div class="section">
+        <h2 class="section-title">II. Objective</h2>
 
-        <h3 style="font-size: 12pt; margin-bottom: 5px; color: #555;">Vital Signs</h3>
+        <div class="sub-header">Vital Signs</div>
         <div class="vital-grid">
             {% set vitals = dynamic_data.get('vital_signs', {}) %}
             {% if vitals %}
@@ -109,33 +115,38 @@
             {% endif %}
         </div>
 
-        <h3 style="font-size: 12pt; margin-top: 20px; margin-bottom: 5px; color: #555;">Physical Exam</h3>
+        <div class="sub-header" style="margin-top: 20px;">Physical Examination Findings</div>
         <div class="content">
             {{ dynamic_data.get('physical_exam', '<span class="no-data">Not provided</span>')|safe }}
         </div>
     </div>
 
-    <div class="section" style="border-left-color: #f39c12;">
-        <h2 class="section-title">Assessment (A)</h2>
+    <div class="section">
+        <h2 class="section-title">III. Assessment</h2>
         <div class="content">
             {{ dynamic_data.get('assessment', '<span class="no-data">Not provided</span>')|safe }}
         </div>
     </div>
 
-    <div class="section" style="border-left-color: #27ae60;">
-        <h2 class="section-title">Plan (P)</h2>
+    <div class="section" style="border-bottom: none;">
+        <h2 class="section-title">IV. Plan</h2>
         <div class="content">
             {% set plan_data = dynamic_data.get('plan', []) %}
             {% if plan_data and plan_data is iterable and plan_data is not string and plan_data[0] is mapping %}
-            <ol style="margin-top: 0; padding-left: 20px;">
-                {% for p in plan_data %}<li>{{ p.action_item }} (<em>{{ p.type|replace('_', ' ')|title }}</em>)</li>{%
-                endfor %}
+            <ol>
+                {% for p in plan_data %}
+                <li><strong>{{ p.action_item }}</strong> ({{ p.type|replace('_', ' ')|title }})</li>
+                {% endfor %}
             </ol>
             {% else %}
             {{ dynamic_data.get('plan', '<span class="no-data">Not provided</span>')|safe }}
             {% endif %}
         </div>
     </div>
+
+</body>
+
+</html>
 
 </body>
 
