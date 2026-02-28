@@ -3,7 +3,7 @@
         "patient_id": "PT-1003",
         "patient_name": "Emma Watson",
         "patient_taj": "111-222-333",
-        "doctor_id": "DR-004",
+        "doctor_id": "D-99",
         "doctor_name": "Dr. Emily Chen",
         "doctor_seal": "S-Chen-44",
         "encounter_date": "2024-02-10T09:15:00Z",
@@ -15,5 +15,5 @@
             }
         ]
     },
-    "transcript": "Good morning Emma. Let's discuss how you've been doing with your chronic migraine management. Looking back at your previous neurology consult, we started you on Topiramate prophylactically. How has that been working? I see from your migraine diary that the frequency of your attacks has decreased from four times a week down to roughly once a week. That is a significant improvement. Have you experienced any side effects? Okay, since the current dosage is effective and you are tolerating it well, we will continue with this treatment plan. It remains very important that you maintain a consistent sleep schedule and stay well hydrated, as we discussed previously."
+    "transcript": "Good morning Emma. Let's discuss how you've been doing with your chronic migraine management. Looking back at your previous neurology consult, we started you on Topiramate prophylactically. How has that been working? I see from your migraine diary that the frequency of your attacks has decreased from four times a week down to roughly once a week. That is a significant improvement. Have you experienced any side effects? Okay, since the current dosage is effective and you are tolerating it well, we will continue with this treatment plan. However, I want to refer you to a neurology headache specialist for a deeper second opinion on your chronic migraines. Today, I am prescribing a total of 5 medications for your ongoing management. These are: Sumatriptan 50 milligrams to take one tablet at the onset of a migraine, Topiramate 25 milligrams to take one tablet twice daily for prevention, Ondansetron 4 milligrams orally disintegrating tablets to dissolve one on your tongue every 8 hours as needed for nausea, Naproxen 500 milligrams to take one tablet twice daily with food as needed, and a Magnesium Oxide 400 milligram supplement to take one tablet daily. It remains very important that you maintain a consistent sleep schedule and stay well hydrated, as we discussed previously."
 }

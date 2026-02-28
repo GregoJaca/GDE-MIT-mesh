@@ -9,11 +9,12 @@ The initial hackathon layout and core feature structure exist, backed by an in-m
 ## Core Features Implemented
 
 - **Backend & Data Integration**
-  - EESZT-compliant mock SQLite database (`mesh_clinical.db`) mapped to strict Pydantic models.
+  - External Registry-compliant mock SQLite database (`mesh_clinical.db`) mapped to strict Pydantic models.
   - [x] Connect `generate_report` to main pipeline workflow (done)
   - [x] Add rigorous unit testing (partial - synthetic pipeline validation)
   - [x] Create synthetic clinical scenarios for testing and demonstration (done)
-  - [x] Seed EESZT mock database with realistic patient journeys (done)
+  - [x] Seed External Registry mock database with realistic patient journeys (done)
+  - [x] Integrate session-linked prescriptions and specialist referrals natively in core DB models (done)
   - Robust synthetic data generation via `seed.py` for testing medical records (Patients, Doctors, Documents).
   - Synthetic clinical transcripts and metadata fixtures in `backend/data/synthetic_transcripts/` for pipeline validation.
 

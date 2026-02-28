@@ -3,7 +3,7 @@
         "patient_id": "P-10101",
         "patient_name": "Jane Doe",
         "patient_taj": "123-456-789",
-        "doctor_id": "DR-002",
+        "doctor_id": "D-99",
         "doctor_name": "Dr. Sarah Miller",
         "doctor_seal": "S-Miller-99",
         "encounter_date": "2024-02-28T10:00:00Z",
@@ -15,5 +15,5 @@
             }
         ]
     },
-    "transcript": "Hello Jane. Today we are doing a follow-up evaluation of the pigmented lesion on your right forearm that you mentioned last week. Looking at it through the dermoscope, the lesion is about 4 millimeters wide. It is asymmetrical and has irregular borders. Comparing it to the earlier consult note, it seems to have changed slightly. I see an atypical network here. Because of these features, I recommend an excisional biopsy to rule out melanoma. It's a quick procedure we can schedule for next week. In the meantime, please remember our counseling on sun protection and continue doing your regular skin self-examinations."
+    "transcript": "Hello Jane. Today we are doing a follow-up evaluation of the pigmented lesion on your right forearm that you mentioned last week. Looking at it through the dermoscope, the lesion is about 4 millimeters wide. It is asymmetrical and has irregular borders. Comparing it to the earlier consult note, it seems to have changed slightly. I see an atypical network here. Because of these features, I recommend an excisional biopsy to rule out melanoma. It's a quick procedure we can schedule for next week. I am also referring you to a surgical oncologist specialist for a consultation regarding this lesion. For your care at home, I am prescribing Mupirocin 2 percent ointment to apply to the affected area three times daily for 7 days, and a Chlorhexidine 4 percent wash to use once daily as a skin cleanser. I am also prescribing Ibuprofen 400mg, which you can take one tablet every 6 hours as needed for any pain after the biopsy. In the meantime, please remember our counseling on sun protection and continue doing your regular skin self-examinations."
 }

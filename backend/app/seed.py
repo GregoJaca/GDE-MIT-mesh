@@ -3,7 +3,7 @@ from datetime import date
 from app.core.database import SessionLocal, engine, Base
 from app.models.persistence_models import (
     Patient, Doctor, EHRDocument, EventCatalog,
-    MedicalCaseModel, AppointmentModel
+    MedicalCaseModel, AppointmentModel, ERecept
 )
 
 def seed():
@@ -102,6 +102,64 @@ def seed():
                          patient_summary="Great news — attacks decreased from four per week to once a week since starting Topiramate."),
     ]
     db.add_all(appointments)
+
+    # ---- Prescriptions (ERecept) ----
+    prescriptions = [
+        # APP-003 (Jane Doe - Derm)
+        ERecept(id="RX-001", patient_id="P-10101", doctor_id="D-99", appointment_id="APP-003",
+                drug_name_strength="Mupirocin 2% Ointment", active_ingredient="Mupirocin",
+                dosage_instructions="Apply to affected area 3 times daily for 7 days", status="Kiváltható",
+                expiry_date=date(2024, 3, 28), external_document_link="ext-rx-doc-881"),
+        ERecept(id="RX-002", patient_id="P-10101", doctor_id="D-99", appointment_id="APP-003",
+                drug_name_strength="Chlorhexidine 4% Wash", active_ingredient="Chlorhexidine gluconate",
+                dosage_instructions="Use once daily as skin cleanser", status="Kiváltható",
+                expiry_date=date(2024, 3, 28), external_document_link="ext-rx-doc-882"),
+        ERecept(id="RX-003", patient_id="P-10101", doctor_id="D-99", appointment_id="APP-003",
+                drug_name_strength="Ibuprofen 400mg", active_ingredient="Ibuprofen",
+                dosage_instructions="Take 1 tablet every 6 hours as needed for pain", status="Kiváltható",
+                expiry_date=date(2024, 5, 28), external_document_link="ext-rx-doc-883"),
+
+        # APP-004 (Michael Chen - Ortho)
+        ERecept(id="RX-004", patient_id="PT-1002", doctor_id="D-99", appointment_id="APP-004",
+                drug_name_strength="Celecoxib 200mg", active_ingredient="Celecoxib",
+                dosage_instructions="Take 1 capsule daily", status="Kiváltható",
+                expiry_date=date(2024, 2, 15), external_document_link="ext-rx-doc-884"),
+        ERecept(id="RX-005", patient_id="PT-1002", doctor_id="D-99", appointment_id="APP-004",
+                drug_name_strength="Cyclobenzaprine 5mg", active_ingredient="Cyclobenzaprine",
+                dosage_instructions="Take 1 tablet at bedtime as needed", status="Kiváltható",
+                expiry_date=date(2024, 2, 15), external_document_link="ext-rx-doc-885"),
+        ERecept(id="RX-006", patient_id="PT-1002", doctor_id="D-99", appointment_id="APP-004",
+                drug_name_strength="Tramadol 50mg", active_ingredient="Tramadol",
+                dosage_instructions="Take 1 tablet every 6 hours as needed for severe pain", status="Kiváltható",
+                expiry_date=date(2024, 2, 15), external_document_link="ext-rx-doc-886"),
+        ERecept(id="RX-007", patient_id="PT-1002", doctor_id="D-99", appointment_id="APP-004",
+                drug_name_strength="Pantoprazole 40mg", active_ingredient="Pantoprazole",
+                dosage_instructions="Take 1 tablet daily before breakfast", status="Kiváltható",
+                expiry_date=date(2024, 2, 15), external_document_link="ext-rx-doc-887"),
+
+        # APP-005 (Emma Watson - Migraine)
+        ERecept(id="RX-008", patient_id="PT-1003", doctor_id="D-99", appointment_id="APP-005",
+                drug_name_strength="Sumatriptan 50mg", active_ingredient="Sumatriptan",
+                dosage_instructions="Take 1 tablet at onset of migraine", status="Kiváltható",
+                expiry_date=date(2025, 2, 10), external_document_link="ext-rx-doc-888"),
+        ERecept(id="RX-009", patient_id="PT-1003", doctor_id="D-99", appointment_id="APP-005",
+                drug_name_strength="Topiramate 25mg", active_ingredient="Topiramate",
+                dosage_instructions="Take 1 tablet twice daily for prevention", status="Kiváltva",
+                expiry_date=date(2025, 2, 10), external_document_link="ext-rx-doc-889"),
+        ERecept(id="RX-010", patient_id="PT-1003", doctor_id="D-99", appointment_id="APP-005",
+                drug_name_strength="Ondansetron 4mg ODT", active_ingredient="Ondansetron",
+                dosage_instructions="Dissolve 1 tablet on tongue every 8 hours as needed", status="Kiváltható",
+                expiry_date=date(2025, 2, 10), external_document_link="ext-rx-doc-890"),
+        ERecept(id="RX-011", patient_id="PT-1003", doctor_id="D-99", appointment_id="APP-005",
+                drug_name_strength="Naproxen 500mg", active_ingredient="Naproxen",
+                dosage_instructions="Take 1 tablet twice daily with food as needed", status="Kiváltható",
+                expiry_date=date(2025, 2, 10), external_document_link="ext-rx-doc-891"),
+        ERecept(id="RX-012", patient_id="PT-1003", doctor_id="D-99", appointment_id="APP-005",
+                drug_name_strength="Magnesium Oxide 400mg", active_ingredient="Magnesium",
+                dosage_instructions="Take 1 tablet daily", status="Kiváltható",
+                expiry_date=date(2025, 2, 10), external_document_link="ext-rx-doc-892"),
+    ]
+    db.add_all(prescriptions)
 
     db.commit()
     db.close()

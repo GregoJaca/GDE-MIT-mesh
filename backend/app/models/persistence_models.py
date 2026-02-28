@@ -65,14 +65,19 @@ class ERecept(Base):
 
     id = Column(String, primary_key=True, index=True)
     patient_id = Column(String, ForeignKey("patients.id"))
+    doctor_id = Column(String, ForeignKey("doctors.id"), nullable=True)
+    appointment_id = Column(String, ForeignKey("appointments.id"), nullable=True)
     
     drug_name_strength = Column(String)
     active_ingredient = Column(String)
     dosage_instructions = Column(String)
     status = Column(String) # Kiváltva, Kiváltható, Visszavonva
     expiry_date = Column(Date)
+    external_document_link = Column(String, nullable=True)
 
     patient = relationship("Patient", back_populates="prescriptions")
+    doctor = relationship("Doctor")
+    appointment = relationship("AppointmentModel")
 
 class EBeutalo(Base):
     """4. eBeutaló (e-Referral)"""

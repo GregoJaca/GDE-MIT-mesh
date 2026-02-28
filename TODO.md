@@ -13,7 +13,7 @@
 
 ## Next Steps for the UI/UX Team
 - [ ] Connect the frontend recording component to the robust `/api/v1/generate-consultation` endpoint.
-- [ ] Render the `PatientSummary` UI with explicit 'Deep Links' based on the structured `EESZT pointers`.
+- [ ] Render the `PatientSummary` UI with explicit 'Deep Links' based on the structured `External Registry pointers`.
 - [ ] Implement async streaming for lower perceived latency on clinical extraction.
 
 # Features Implementation Status
@@ -28,7 +28,9 @@
 - **AI Transcription Backend API**: [integrated]
 - **Backend File Upload Integration**: [missing]
 - **Synthetic Clinical Data Generation**: [done]
-- **EESZT DB Seeding**: [done]
+- **External Registry DB Seeding**: [done]
+- **Prescription and Session Linkage Database Models**: [done]
+- **Specialist Referrals in Transcripts**: [done]
 - **Patient Dashboard History**: [done]
 - **General Profile & Settings Dialogs**: [minimal implementation]
 - **deleting audio when sended to the transcriber**: [done]
@@ -46,7 +48,9 @@
 - [x] Connect `generate_report` to main pipeline workflow (done)
 - [x] Add rigorous unit testing (partial - synthetic pipeline validation)
 - [x] Create synthetic clinical scenarios for testing and demonstration (done)
-- [x] Seed EESZT mock database with realistic patient journeys (done)
+- [x] Seed External Registry mock database with realistic patient journeys (done)
+- [x] Abstract all specific upstream systems into generic configurations (done)
+- [x] Extend prescription tracking directly linked to Doctor and Sessions (done)
 
 
 ## Transcriber Module
