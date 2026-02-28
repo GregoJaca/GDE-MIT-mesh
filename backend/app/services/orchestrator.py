@@ -115,3 +115,85 @@ class OrchestratorService:
             f.write(hydrated_patient["layman_explanation"])
         
         return pdf_path, patient_summary_md_path
+
+    async def run_extraction_from_text(
+        self, 
+        raw_transcript: str, 
+        format_id: str,
+        db: Session,
+        patient_id: str,
+        doctor_id: str,
+        encounter_date: str
+    ) -> Tuple[str, str]:
+        """
+        Special testing entry point that skips transcription and goes straight to extraction/generation.
+        """
+        logger.info(f"Starting text-only orchestration for patient {patient_id}")
+        
+        # 1. Fetch DB Context
+        patient_meta, context_docs = DBService.get_patient_context(db, patient_id)
+        if not patient_meta:
+            raise ValueError(f"Patient {patient_id} context could not be retrieved.")
+            
+        doctor_meta = DBService.get_doctor_context(db, doctor_id)
+        available_doctors = DBService.get_available_doctors(db)
+        
+        available_doctor_categories = [{"doctor_id": d["doctor_id"], "specialty": d["specialty"]} for d in available_doctors]
+        
+        # 2. Construct full metadata context
+        full_metadata = {
+            "patient_id": patient_id,
+            "patient_name": patient_meta["name"],
+            "patient_taj": patient_meta["taj"],
+            "doctor_id": doctor_id,
+            "doctor_name": doctor_meta["name"],
+            "doctor_seal": doctor_meta["seal_number"],
+            "encounter_date": encounter_date,
+            "context_documents": context_docs,
+            "available_doctor_categories": available_doctor_categories
+        }
+        
+        # 3. Run Pipeline
+        hydrated_clinical, hydrated_patient, _ = self.pipeline.run_consultation(
+            raw_transcript=raw_transcript,
+            metadata_context=full_metadata
+        )
+        
+        # 4. Document Generation
+        soap_dynamic_data = hydrated_clinical
+        if format_id == "fmt_001":
+            cc_list = [f"• {c['finding']} ({c['condition_status']})" for c in hydrated_clinical.get("chief_complaints", [])]
+            ast_list = [f"• {a['finding']} ({a['condition_status']})" for a in hydrated_clinical.get("assessments", [])]
+            plan_list = [{"action_item": p["description"], "type": p["action_type"]} for p in hydrated_clinical.get("actionables", [])]
+            
+            soap_dynamic_data = {
+                "chief_complaint": "<br>".join(cc_list) if cc_list else "None reported.",
+                "history_of_present_illness": "Information extracted automatically from clinical text input.",
+                "vital_signs": {},
+                "physical_exam": "Not assessed via text analysis.",
+                "assessment": "<br>".join(ast_list) if ast_list else "Pending physician review.",
+                "plan": plan_list
+            }
+
+        doc_payload = {
+            "universal_header": {
+                "patient_name": patient_meta["name"],
+                "patient_id": patient_id,
+                "taj": patient_meta["taj"],
+                "doctor_name": doctor_meta["name"],
+                "date": encounter_date
+            },
+            "dynamic_data": soap_dynamic_data
+        }
+        
+        output_pdf = f"/tmp/medical_report_text_{patient_id}.pdf"
+        success, pdf_path, md_report_path = generate_report_from_dict(
+            doc_payload, "fmt_001", output_pdf
+        )
+        
+        patient_summary_md_path = f"/tmp/patient_summary_text_{patient_id}.md"
+        with open(patient_summary_md_path, "w", encoding="utf-8") as f:
+            f.write(f"# Patient Summary: {patient_meta['name']}\n\n")
+            f.write(hydrated_patient["layman_explanation"])
+        
+        return pdf_path, patient_summary_md_path

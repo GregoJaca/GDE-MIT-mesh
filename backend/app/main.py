@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from app.core.llm_client import LLMClient
 from app.core.database import get_db
 from app.services.db_service import DBService
-from app.models.api_models import EncounterMetadata, OrchestrationResponse, DraftResponse, FinalizeRequest
+from app.models.api_models import EncounterMetadata, OrchestrationResponse, DraftResponse, FinalizeRequest, ConsultationRequest
 from app.services.pipeline import ZeroHallucinationPipeline
 from app.services.orchestrator import OrchestratorService
 from app.models.persistence_models import Patient, EHRDocument
@@ -132,6 +132,37 @@ async def finalize_report(request: FinalizeRequest):
         
     except Exception as e:
         logger.error(f"Finalization Failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.post("/api/v1/test/generate-consultation", response_model=OrchestrationResponse)
+async def test_generate_consultation(
+    request: ConsultationRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Test endpoint for processing synthetic consultations from JSON (text-only).
+    """
+    try:
+        meta = request.metadata
+        pdf_path, summary_md_path = await state.orchestrator.run_extraction_from_text(
+            raw_transcript=request.transcript,
+            format_id=request.format_id,
+            db=db,
+            patient_id=meta.patient_id,
+            doctor_id=meta.doctor_id,
+            encounter_date=meta.encounter_date
+        )
+        
+        with open(summary_md_path, "r", encoding="utf-8") as f:
+            summary_content = f.read()
+            
+        return OrchestrationResponse(
+            medical_report_pdf_url=f"/outputs/{pdf_path.split('/')[-1]}",
+            patient_summary_md=summary_content,
+            administrative_metadata=meta.model_dump()
+        )
+    except Exception as e:
+        logger.error(f"Test Orchestration Failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/v1/eeszt/patients")

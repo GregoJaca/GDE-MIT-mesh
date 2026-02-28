@@ -21,6 +21,11 @@ class EncounterMetadata(BaseModel):
     encounter_date: str = Field(..., description="ISO 8601 Datetime.")
     format_id: str = Field(default="fmt_001", description="Report format ID.")
 
+class ConsultationRequest(BaseModel):
+    metadata: EncounterMetadata
+    transcript: str = Field(..., description="The dictated notes/transcript")
+    format_id: str = Field(default="fmt_001", description="The ID of the report format to generate")
+
 class DraftResponse(BaseModel):
     administrative_metadata: dict
     patient_summary_md: str
