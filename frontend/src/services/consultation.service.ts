@@ -9,6 +9,7 @@ export interface DraftPayload {
     date: string;
     audio: Blob;
     language: string;
+    transcript?: string;
 }
 
 export async function generateDraft(payload: DraftPayload): Promise<import('@/types').DraftResponse> {
@@ -17,6 +18,9 @@ export async function generateDraft(payload: DraftPayload): Promise<import('@/ty
     formData.append('doctor_id', payload.doctorId);
     formData.append('encounter_date', payload.date);
     formData.append('language', payload.language);
+    if (payload.transcript) {
+        formData.append('transcript', payload.transcript);
+    }
     formData.append('audio', payload.audio, 'consultation.webm');
 
     const res = await fetch(`${APP_CONFIG.API.BASE_URL}/generate-draft`, {

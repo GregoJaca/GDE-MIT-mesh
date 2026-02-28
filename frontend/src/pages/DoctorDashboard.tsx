@@ -206,7 +206,15 @@ export default function DoctorDashboard() {
         if (!patientContext) { setError('Patient context not loaded.'); return; }
         setFlowState('drafting');
         try {
-            const result = await generateDraft({ patientContext, doctorId: DOCTOR_ID, date: new Date().toISOString(), audio: audioBlob, language });
+            const transcript = recorder.liveTranscript;
+            const result = await generateDraft({
+                patientContext,
+                doctorId: DOCTOR_ID,
+                date: new Date().toISOString(),
+                audio: audioBlob,
+                language,
+                transcript
+            });
             setDraft(result);
             setEditedJson(result.clinical_draft_json);
             setFlowState('reviewing');

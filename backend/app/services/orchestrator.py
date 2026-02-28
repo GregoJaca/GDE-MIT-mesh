@@ -23,7 +23,8 @@ class OrchestratorService:
         patient_id: str,
         doctor_id: str,
         encounter_date: str,
-        language: str = "en"
+        language: str = "en",
+        fallback_transcript: str = None
     ) -> Tuple[dict, dict, dict, dict]:
         """
         Step 1: Audio -> Transcript -> LLM Pipeline -> Draft JSON.
@@ -38,16 +39,24 @@ class OrchestratorService:
         doctor_meta = DBService.get_doctor_context(db, doctor_id)
         available_doctors = DBService.get_available_doctors(db)
         
-        loop = asyncio.get_running_loop()
-        transcript_lines = await loop.run_in_executor(None, transcribe_file_with_diarization, audio_file_path)
-        raw_transcript = " ".join(transcript_lines).strip()
+        try:
+            loop = asyncio.get_running_loop()
+            transcript_lines = await loop.run_in_executor(None, transcribe_file_with_diarization, audio_file_path)
+            raw_transcript = " ".join(transcript_lines).strip()
+        except Exception as e:
+            logger.warning(f"Azure transcription failed: {e}. Falling back to browser transcript.")
+            raw_transcript = ""
         
         if not raw_transcript:
-            raise ValueError(
-                "Transcription returned an empty result. "
-                "Check that SPEECH_KEY and SERVICE_REGION are set correctly in .env, "
-                "and that the audio file contains intelligible speech."
-            )
+            if fallback_transcript:
+                logger.info("Using fallback browser transcript.")
+                raw_transcript = fallback_transcript.strip()
+            else:
+                raise ValueError(
+                    "Transcription returned an empty result. "
+                    "Check that SPEECH_KEY and SERVICE_REGION are set correctly in .env, "
+                    "or ensure your browser has microphone permissions to provide a fallback transcript."
+                )
         
         available_doctor_categories = [{"doctor_id": d["doctor_id"], "specialty": d["specialty"]} for d in available_doctors]
         

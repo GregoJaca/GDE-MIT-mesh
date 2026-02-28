@@ -78,6 +78,7 @@ async def generate_draft(
     doctor_id: str = Form(..., description="Used for referral mapping."),
     encounter_date: str = Form(..., description="ISO 8601 Datetime."),
     language: str = Form("en", description="Translation language."),
+    transcript: str = Form(None, description="Optional fallback transcript from frontend WebSpeech API"),
     audio: UploadFile = File(...),
     db: Session = Depends(get_db)
 ):
@@ -99,7 +100,8 @@ async def generate_draft(
             patient_id=patient_id,
             doctor_id=doctor_id,
             encounter_date=encounter_date,
-            language=language
+            language=language,
+            fallback_transcript=transcript
         )
         
         return DraftResponse(
