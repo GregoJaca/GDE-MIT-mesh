@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mesh — Pipeline Debug Console</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0a0a0a;
+    --bg2: #111;
+    --bg3: #161616;
+    --border: #222;
+    --border2: #2a2a2a;
+    --text: #e8e8e8;
+    --text2: #888;
+    --text3: #555;
+    --accent: #e8e8e8;
+    --green: #4ade80;
+    --red: #f87171;
+    --yellow: #fbbf24;
+    --blue: #60a5fa;
+    --mono: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+    --sans: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 13px;
+    line-height: 1.5;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 24px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg2);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
+  .logo { font-size: 14px; font-weight: 700; letter-spacing: .08em; color: var(--text2); }
+  .logo span { color: var(--text); }
+  .status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); display: inline-block; margin-right: 6px; }
+  .status-dot.red { background: var(--red); }
+
+  .layout {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    height: calc(100vh - 49px);
+  }
+
+  .sidebar {
+    width: 320px;
+    border-right: 1px solid var(--border);
+    background: var(--bg2);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+
+  .sidebar-header {
+    padding: 14px 16px 10px;
+    border-bottom: 1px solid var(--border);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--text2);
+  }
+
+  .sidebar-scroll { overflow-y: auto; flex: 1; padding: 12px; }
+
+  .field-group { margin-bottom: 14px; }
+  .field-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--text3);
+    margin-bottom: 6px;
+  }
+
+  select, input[type="text"] {
+    width: 100%;
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    color: var(--text);
+    padding: 7px 10px;
+    border-radius: 5px;
+    font-family: var(--mono);
+    font-size: 12px;
+    outline: none;
+    transition: border-color .15s;
+  }
+  select:focus, input:focus { border-color: #444; }
+  select option { background: #111; }
+
+  textarea {
+    width: 100%;
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    color: var(--text);
+    padding: 10px;
+    border-radius: 5px;
+    font-family: var(--mono);
+    font-size: 12px;
+    resize: vertical;
+    min-height: 160px;
+    outline: none;
+    transition: border-color .15s;
+    line-height: 1.6;
+  }
+  textarea:focus { border-color: #444; }
+
+  .checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--text2);
+  }
+  .checkbox-row input[type="checkbox"] { accent-color: var(--text); }
+
+  .btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    width: 100%;
+    padding: 9px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: .04em;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: opacity .15s;
+  }
+  .btn:hover { opacity: .85; }
+  .btn:active { opacity: .7; }
+  .btn:disabled { opacity: .35; cursor: not-allowed; }
+  .btn-primary { background: var(--text); color: #000; }
+  .btn-secondary { background: var(--bg3); color: var(--text); border: 1px solid var(--border2); }
+  .btn-row { display: flex; flex-direction: column; gap: 7px; margin-top: 4px; }
+
+  .preset-tag {
+    display: inline-block;
+    padding: 3px 8px;
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    border-radius: 3px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text2);
+    cursor: pointer;
+    margin: 2px;
+    transition: all .1s;
+  }
+  .preset-tag:hover { border-color: #444; color: var(--text); }
+
+  /* Main output */
+  .main {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .output-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg2);
+    position: sticky;
+    top: 0;
+    z-index: 5;
+  }
+  .output-toolbar-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--text2);
+  }
+  .tab {
+    padding: 4px 0;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    color: var(--text3);
+    transition: all .15s;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+  }
+  .tab.active { color: var(--text); border-bottom-color: var(--text); }
+  .tab:hover { color: var(--text2); }
+
+  .output-content { padding: 20px; flex: 1; }
+
+  /* Stage blocks */
+  .stage {
+    margin-bottom: 16px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .stage-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 9px 14px;
+    background: var(--bg3);
+    cursor: pointer;
+    border-bottom: 1px solid var(--border);
+    user-select: none;
+  }
+  .stage-title {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--text2);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .stage-badge {
+    padding: 2px 7px;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: 700;
+    font-family: var(--mono);
+  }
+  .badge-green { background: rgba(74,222,128,.1); color: var(--green); border: 1px solid rgba(74,222,128,.2); }
+  .badge-red   { background: rgba(248,113,113,.1); color: var(--red);   border: 1px solid rgba(248,113,113,.2); }
+  .badge-blue  { background: rgba(96,165,250,.1);  color: var(--blue);  border: 1px solid rgba(96,165,250,.2); }
+  .badge-yellow{ background: rgba(251,191,36,.1);  color: var(--yellow);border: 1px solid rgba(251,191,36,.2); }
+  .badge-dim   { background: #1a1a1a; color: var(--text3); border: 1px solid var(--border); }
+
+  .stage-chevron { color: var(--text3); font-size: 11px; transition: transform .15s; }
+  .stage-chevron.open { transform: rotate(90deg); }
+  .stage-body { padding: 14px; display: none; }
+  .stage-body.open { display: block; }
+
+  /* KV table */
+  .kv { display: grid; grid-template-columns: 180px 1fr; gap: 6px 12px; margin-bottom: 12px; }
+  .kv-key { color: var(--text3); font-size: 11px; font-family: var(--mono); }
+  .kv-val { color: var(--text); font-size: 12px; font-family: var(--mono); word-break: break-all; }
+
+  /* Code block */
+  pre {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 12px;
+    font-family: var(--mono);
+    font-size: 11.5px;
+    overflow-x: auto;
+    line-height: 1.7;
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: var(--text);
+    margin-bottom: 10px;
+  }
+
+  /* Clinical items */
+  .clinical-section { margin-bottom: 14px; }
+  .clinical-section-title {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--text3);
+    margin-bottom: 8px;
+  }
+  .clinical-item {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    padding: 7px 10px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    margin-bottom: 5px;
+    background: var(--bg3);
+  }
+  .ci-status {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    padding: 2px 6px;
+    border-radius: 3px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .ci-CONFIRMED   { background: rgba(74,222,128,.12); color: var(--green); }
+  .ci-NEGATED     { background: rgba(248,113,113,.12); color: var(--red); }
+  .ci-SUSPECTED   { background: rgba(251,191,36,.12); color: var(--yellow); }
+  .ci-UNKNOWN     { background: #1a1a1a; color: var(--text3); }
+  .ci-PHARMACY_PICKUP { background: rgba(96,165,250,.12); color: var(--blue); }
+  .ci-FOLLOW_UP_APPT  { background: rgba(74,222,128,.12); color: var(--green); }
+  .ci-LIFESTYLE_CHANGE{ background: rgba(251,191,36,.12); color: var(--yellow); }
+  .ci-LAB_TEST        { background: rgba(96,165,250,.12); color: var(--blue); }
+  .ci-OTHER           { background: #1a1a1a; color: var(--text3); }
+
+  .ci-finding { flex: 1; color: var(--text); font-size: 12px; }
+  .ci-quote {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text3);
+    font-style: italic;
+    border-left: 2px solid var(--border2);
+    padding-left: 8px;
+    margin-top: 4px;
+  }
+  .ci-ref {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--blue);
+    margin-top: 3px;
+  }
+  .ci-content { flex: 1; }
+
+  /* Hallucination warnings */
+  .halluc-list { list-style: none; }
+  .halluc-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border: 1px solid rgba(248,113,113,.2);
+    background: rgba(248,113,113,.05);
+    border-radius: 4px;
+    margin-bottom: 5px;
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--red);
+  }
+
+  /* Loading */
+  .loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    color: var(--text3);
+    gap: 16px;
+    text-align: center;
+  }
+  .spinner {
+    width: 24px; height: 24px;
+    border: 2px solid var(--border2);
+    border-top-color: var(--text2);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--text3);
+    gap: 10px;
+    font-size: 13px;
+  }
+  .empty-state p { max-width: 340px; text-align: center; line-height: 1.7; }
+
+  /* Error */
+  .error-block {
+    background: rgba(248,113,113,.06);
+    border: 1px solid rgba(248,113,113,.2);
+    border-radius: 6px;
+    padding: 16px;
+    color: var(--red);
+    font-family: var(--mono);
+    font-size: 12px;
+    white-space: pre-wrap;
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Mesh / <span>Pipeline Debug Console</span></div>
+  <div style="display:flex;align-items:center;gap:10px;font-size:11px;color:var(--text3);">
+    <span id="api-status"><span class="status-dot red" id="status-dot"></span>Connecting…</span>
+    <code id="api-url" style="font-family:var(--mono);font-size:11px;opacity:.5">localhost:8000</code>
+  </div>
+</header>
+
+<div class="layout">
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="sidebar-header">Configuration</div>
+    <div class="sidebar-scroll">
+
+      <div class="field-group">
+        <div class="field-label">Patient ID</div>
+        <select id="patient-select">
+          <option value="">Loading…</option>
+        </select>
+      </div>
+
+      <div class="field-group">
+        <div class="field-label">Doctor ID</div>
+        <input type="text" id="doctor-id" value="D-99">
+      </div>
+
+      <div class="field-group">
+        <div class="field-label">Summary Language</div>
+        <select id="language">
+          <option value="en">English</option>
+          <option value="hu">Hungarian</option>
+          <option value="es">Spanish</option>
+        </select>
+      </div>
+
+      <div class="field-group">
+        <div class="field-label">Transcript</div>
+        <textarea id="transcript" placeholder="Paste or type the consultation transcript here…">Patient Jane Doe presents with sharp chest pain for the past 3 days. The pain worsens when breathing deeply. Blood pressure is 130 over 85. I will prescribe ibuprofen 400mg twice a day for 5 days. Please schedule a follow-up in two weeks.</textarea>
+      </div>
+
+      <div class="field-group">
+        <div class="checkbox-row">
+          <input type="checkbox" id="skip-pii">
+          <label for="skip-pii">Skip PII scrubbing</label>
+        </div>
+        <div style="color:var(--text3);font-size:11px;margin-top:4px;line-height:1.5;padding-left:22px;">
+          Use when transcript is already anonymised.
+        </div>
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="runDraft()">
+          Run Full Pipeline
+        </button>
+        <button class="btn btn-secondary" onclick="showDbContext()">
+          Inspect DB Context Only
+        </button>
+      </div>
+
+      <div style="margin-top:20px;">
+        <div class="field-label">Test Presets</div>
+        <div style="margin-top:6px;">
+          <span class="preset-tag" onclick="loadPreset('basic')">Basic visit</span>
+          <span class="preset-tag" onclick="loadPreset('negation')">Negation test</span>
+          <span class="preset-tag" onclick="loadPreset('opaque')">EHR pointer</span>
+          <span class="preset-tag" onclick="loadPreset('empty')">Empty transcript</span>
+          <span class="preset-tag" onclick="loadPreset('multi')">Multi-complaint</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Main output -->
+  <div class="main">
+    <div class="output-toolbar">
+      <div class="output-toolbar-left">
+        <span class="tab active" id="tab-pipeline" onclick="switchTab('pipeline')">Pipeline Trace</span>
+        <span class="tab" id="tab-raw" onclick="switchTab('raw')">Raw JSON</span>
+        <span class="tab" id="tab-prompts" onclick="switchTab('prompts')">System Prompts</span>
+      </div>
+      <button class="btn btn-secondary" style="width:auto;padding:5px 12px;font-size:11px;" onclick="copyRaw()">Copy JSON</button>
+    </div>
+
+    <div class="output-content">
+      <div id="tab-pipeline-content">
+        <div class="empty-state">
+          <div style="font-size:24px;opacity:.2">⬡</div>
+          <p>Configure a patient and transcript, then click <strong>Run Full Pipeline</strong> to trace every stage — from DB context loading through PII scrubbing, LLM extraction, guardrail validation, patient summary, and PII hydration.</p>
+        </div>
+      </div>
+      <div id="tab-raw-content" style="display:none">
+        <pre id="raw-json" style="min-height:200px;color:var(--text3)">No data yet.</pre>
+      </div>
+      <div id="tab-prompts-content" style="display:none">
+        <div id="prompts-content">
+          <div class="empty-state"><p>Run the pipeline first — prompts will appear here.</p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = 'http://localhost:8000';
+let lastResult = null;
+let currentTab = 'pipeline';
+
+const PRESETS = {
+  basic: `Patient Jane Doe presents with sharp chest pain for the past 3 days. The pain worsens when breathing deeply. Blood pressure is 130 over 85. I will prescribe ibuprofen 400mg twice a day for 5 days. Please schedule a follow-up in two weeks.`,
+  negation: `Patient John Smith denies any chest pain or shortness of breath. Mother has diabetes but patient does not. Blood pressure is within normal limits. No medications were prescribed today. Patient is in good health, no follow-up required.`,
+  opaque: `Looking at Jane's lab results from the last visit, the cholesterol is elevated. Total cholesterol 240 mg per dL from her lab report. I will prescribe atorvastatin 20mg once daily. Please refer her to the cardiologist for a follow-up consultation.`,
+  empty: `Hello. Yes. Okay. Goodbye.`,
+  multi: `Patient Jane Doe presents today complaining of knee pain for two weeks, a rash on the left forearm that appeared yesterday, and fatigue. Knee pain is worse with walking. The rash is red and itchy. Prescribing hydrocortisone cream 1 percent for the rash. Ordering an X-ray for the knee. Follow-up in 4 weeks.`,
+};
+
+function loadPreset(name) {
+  document.getElementById('transcript').value = PRESETS[name] || '';
+}
+
+function switchTab(tab) {
+  currentTab = tab;
+  ['pipeline','raw','prompts'].forEach(t => {
+    document.getElementById(`tab-${t}`).classList.toggle('active', t === tab);
+    document.getElementById(`tab-${t}-content`).style.display = t === tab ? '' : 'none';
+  });
+}
+
+async function checkApi() {
+  try {
+    const r = await fetch(`${API}/api/v1/eeszt/patients`);
+    if (r.ok) {
+      const patients = await r.json();
+      document.getElementById('status-dot').classList.remove('red');
+      document.getElementById('api-status').innerHTML = `<span class="status-dot"></span>Backend online`;
+      const sel = document.getElementById('patient-select');
+      sel.innerHTML = patients.map(p => `<option value="${p.id}">${p.name} (${p.id})</option>`).join('');
+    }
+  } catch (e) {
+    document.getElementById('api-status').innerHTML = `<span class="status-dot red"></span>Backend offline`;
+  }
+}
+checkApi();
+setInterval(checkApi, 10000);
+
+async function runDraft() {
+  const payload = {
+    patient_id: document.getElementById('patient-select').value,
+    doctor_id: document.getElementById('doctor-id').value,
+    encounter_date: new Date().toISOString(),
+    language: document.getElementById('language').value,
+    transcript: document.getElementById('transcript').value,
+    skip_pii_scrub: document.getElementById('skip-pii').checked,
+  };
+
+  document.getElementById('tab-pipeline-content').innerHTML = `
+    <div class="loading">
+      <div class="spinner"></div>
+      <div>Running pipeline — Azure / Presidio / OpenAI…<br>
+        <span style="opacity:.5;font-size:11px;">This may take 15–45s depending on LLM latency.</span>
+      </div>
+    </div>`;
+
+  switchTab('pipeline');
+
+  try {
+    const res = await fetch(`${API}/api/v1/debug/run-draft`, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || JSON.stringify(data));
+    lastResult = data;
+    renderPipeline(data);
+    document.getElementById('raw-json').textContent = JSON.stringify(data, null, 2);
+    renderPrompts(data);
+  } catch (e) {
+    document.getElementById('tab-pipeline-content').innerHTML = `
+      <div class="error-block">${escHtml(String(e))}</div>`;
+  }
+}
+
+async function showDbContext() {
+  const patientId = document.getElementById('patient-select').value;
+  const doctorId = document.getElementById('doctor-id').value;
+
+  document.getElementById('tab-pipeline-content').innerHTML = `<div class="loading"><div class="spinner"></div><div>Fetching DB context…</div></div>`;
+  switchTab('pipeline');
+
+  try {
+    const res = await fetch(`${API}/api/v1/debug/db-context/${patientId}?doctor_id=${doctorId}`);
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || JSON.stringify(data));
+
+    document.getElementById('tab-pipeline-content').innerHTML = `
+      ${stage('DB Context — what the LLM sees', true, `
+        <div class="clinical-section">
+          <div class="clinical-section-title">Patient</div>
+          <div class="kv">
+            <span class="kv-key">id</span><span class="kv-val">${data.patient_meta.id}</span>
+            <span class="kv-key">name</span><span class="kv-val">${data.patient_meta.name}</span>
+            <span class="kv-key">taj</span><span class="kv-val">${data.patient_meta.taj}</span>
+            <span class="kv-key">dob</span><span class="kv-val">${data.patient_meta.dob}</span>
+          </div>
+        </div>
+        <div class="clinical-section">
+          <div class="clinical-section-title">EHR Documents injected as opaque pointers</div>
+          ${data.context_documents.length ? data.context_documents.map(d => `
+            <div class="clinical-item">
+              <span class="ci-status ci-CONFIRMED" style="font-family:var(--mono)">${d.system_doc_id}</span>
+              <div class="ci-content">
+                <div class="ci-finding">${d.type}</div>
+                <div class="ci-quote">${d.date || '?'}</div>
+              </div>
+            </div>`).join('') : '<div style="color:var(--text3);font-size:12px;">No EHR documents for this patient.</div>'}
+        </div>
+        <div class="clinical-section">
+          <div class="clinical-section-title">Available doctor categories for referral mapping</div>
+          ${data.available_doctor_categories.map(c => `
+            <div class="clinical-item">
+              <span class="ci-status ci-FOLLOW_UP_APPT">${c.doctor_id}</span>
+              <div class="ci-finding">${c.specialty}</div>
+            </div>`).join('')}
+        </div>
+        <div class="clinical-section">
+          <div class="clinical-section-title">system_context JSON injected into every LLM call</div>
+          <pre>${escHtml(data.system_context_injected_into_llm)}</pre>
+        </div>
+      `)}`;
+
+    document.getElementById('raw-json').textContent = JSON.stringify(data, null, 2);
+  } catch (e) {
+    document.getElementById('tab-pipeline-content').innerHTML = `<div class="error-block">${escHtml(String(e))}</div>`;
+  }
+}
+
+function renderPipeline(d) {
+  const hallucs = d.hallucinations_stripped || [];
+
+  document.getElementById('tab-pipeline-content').innerHTML = [
+    stage('Stage 0 — DB Context', false, `
+      <div class="kv">
+        <span class="kv-key">Patient</span><span class="kv-val">${d.patient_meta.name} (${d.patient_meta.id})</span>
+        <span class="kv-key">Doctor</span><span class="kv-val">${d.doctor_meta.name}</span>
+        <span class="kv-key">EHR documents</span><span class="kv-val">${d.context_documents.length}</span>
+        <span class="kv-key">Doctor categories</span><span class="kv-val">${d.available_doctor_categories.length}</span>
+      </div>
+      ${d.context_documents.map(doc => `
+        <div class="clinical-item">
+          <span class="ci-status ci-CONFIRMED" style="font-family:var(--mono)">${doc.system_doc_id}</span>
+          <div class="ci-content">
+            <div class="ci-finding">${doc.type}</div>
+            <div class="ci-quote">${doc.date || '?'}</div>
+          </div>
+        </div>`).join('')}
+      ${d.available_doctor_categories.map(c => `
+        <div class="clinical-item">
+          <span class="ci-status ci-FOLLOW_UP_APPT">${c.doctor_id}</span>
+          <div class="ci-finding">${c.specialty}</div>
+        </div>`).join('')}
+    `),
+
+    stage('Stage 1 — PII Scrubbing (Presidio)', false, `
+      <div class="kv">
+        <span class="kv-key">Raw length</span><span class="kv-val">${d.raw_transcript.length} chars</span>
+        <span class="kv-key">Scrubbed length</span><span class="kv-val">${d.scrubbed_transcript.length} chars</span>
+        <span class="kv-key">Tokens replaced</span><span class="kv-val">${Object.keys(d.token_map).length}</span>
+      </div>
+      ${Object.keys(d.token_map).length ? `
+        <div class="clinical-section-title">Token Map</div>
+        ${Object.entries(d.token_map).map(([tok, orig]) => `
+          <div class="kv" style="margin-bottom:4px;">
+            <span class="kv-key" style="color:var(--red)">${escHtml(tok)}</span>
+            <span class="kv-val" style="color:var(--green)">→ ${escHtml(orig)}</span>
+          </div>`).join('')}
+      ` : '<div style="color:var(--text3);font-size:12px;">No PII tokens replaced.</div>'}
+      <div class="clinical-section-title" style="margin-top:12px;">Scrubbed Transcript (what the LLM processes)</div>
+      <pre>${escHtml(d.scrubbed_transcript)}</pre>
+    `),
+
+    stage('Stage 2 — LLM Call 1: Clinical Extraction (raw, before guardrail)', false,
+      renderClinical(d.clinical_extraction_raw)
+    ),
+
+    stage(`Stage 2b — Guardrail Validation ${hallucs.length ? `<span class="stage-badge badge-red">${hallucs.length} stripped</span>` : '<span class="stage-badge badge-green">0 hallucinations</span>'}`, false, `
+      ${hallucs.length ? `
+        <div style="margin-bottom:12px;">
+          <div class="clinical-section-title">Stripped (quote not found verbatim in scrubbed transcript)</div>
+          <ul class="halluc-list">
+            ${hallucs.map(h => `<li class="halluc-item">✖ "${escHtml(h)}"</li>`).join('')}
+          </ul>
+        </div>
+      ` : '<div style="color:var(--green);font-size:12px;margin-bottom:12px;">All quotes verified verbatim — zero hallucinations.</div>'}
+      <div class="clinical-section-title">Validated Clinical Draft</div>
+      ${renderClinical(d.clinical_draft_validated)}
+    `),
+
+    stage('Stage 3 — LLM Call 2: Patient Summary', false, `
+      <pre>${escHtml(d.patient_summary_md)}</pre>
+    `),
+
+    stage('Stage 4 — PII Hydration (names restored)', false, `
+      ${renderClinical(d.clinical_final_hydrated)}
+      <div class="clinical-section-title" style="margin-top:14px;">Patient Summary (hydrated)</div>
+      <pre>${escHtml(d.patient_summary_hydrated)}</pre>
+    `),
+  ].join('');
+}
+
+function renderClinical(d) {
+  const cc  = d.chief_complaints || [];
+  const ass = d.assessments || [];
+  const act = d.actionables || [];
+  return `
+    <div class="clinical-section">
+      <div class="clinical-section-title">Chief Complaints (${cc.length})</div>
+      ${cc.map(c => clinicalItem(c, c.condition_status, c.finding)).join('') || '<div style="color:var(--text3);font-size:12px;">None</div>'}
+    </div>
+    <div class="clinical-section">
+      <div class="clinical-section-title">Assessments (${ass.length})</div>
+      ${ass.map(a => clinicalItem(a, a.condition_status, a.finding)).join('') || '<div style="color:var(--text3);font-size:12px;">None</div>'}
+    </div>
+    <div class="clinical-section">
+      <div class="clinical-section-title">Actionables (${act.length})</div>
+      ${act.map(a => clinicalItem(a, a.action_type, a.description)).join('') || '<div style="color:var(--text3);font-size:12px;">None</div>'}
+    </div>`;
+}
+
+function clinicalItem(item, status, text) {
+  const cls = `ci-${status || 'UNKNOWN'}`;
+  return `
+    <div class="clinical-item">
+      <span class="ci-status ${cls}">${status}</span>
+      <div class="ci-content">
+        <div class="ci-finding">${escHtml(text)}</div>
+        ${item.exact_quote ? `<div class="ci-quote">"${escHtml(item.exact_quote)}"</div>` : ''}
+        ${item.system_reference_id ? `<div class="ci-ref">ref: ${escHtml(item.system_reference_id)}</div>` : ''}
+        ${item.timeframe ? `<div class="ci-quote" style="color:var(--yellow);">when: ${escHtml(item.timeframe)}</div>` : ''}
+      </div>
+    </div>`;
+}
+
+function renderPrompts(d) {
+  const ctx = d.system_context_injected;
+  document.getElementById('prompts-content').innerHTML = `
+    <div class="stage" style="margin-bottom:16px;">
+      <div class="stage-header" style="cursor:default">
+        <span class="stage-title">CLINICAL_EXTRACTION_SYSTEM_PROMPT (truncated + actual context)</span>
+      </div>
+      <div class="stage-body open">
+        <pre>You are a strict, clinical NLP extractor.
+CRITICAL RULES:
+1. ONLY use information explicitly stated in the transcript.
+2. Under NO CIRCUMSTANCES should you guess or infer clinical status.
+3. Every 'exact_quote' must be a literal, verbatim substring from the transcript.
+4. Every 'contextual_quote' must include the exact quote plus approx 5 words before and after.
+5. IF a finding refers to a past document: Look at 'available_documents' in System Context. Map its 'system_doc_id'.
+6. IF an actionable refers to a specific doctor: Look at 'available_doctors'. Map the matching 'doctor_id'.
+7. Preserve names and dates exactly as they appear in the transcript.
+
+System Context:
+${escHtml(ctx)}</pre>
+      </div>
+    </div>
+    <div class="stage" style="margin-bottom:16px;">
+      <div class="stage-header" style="cursor:default">
+        <span class="stage-title">PATIENT_SUMMARY_SYSTEM_PROMPT</span>
+      </div>
+      <div class="stage-body open">
+        <pre>You are a patient advocate translator.
+Translate the provided Clinical Report and Transcript into layman terms for the patient in language: ${document.getElementById('language').value}
+CRITICAL RULES:
+1. Do NOT add any findings not present in the Clinical Report or Transcript.
+2. Preserve all 'system_reference_id' pointers exactly.
+3. If clinical JSON contains references to doctors or documents, mention them so the patient knows who to follow up with.
+
+System Context (Available Doctor Categories & Documents):
+${escHtml(ctx)}</pre>
+      </div>
+    </div>`;
+}
+
+function stage(title, open, content) {
+  const id = 'stage-' + Math.random().toString(36).slice(2,8);
+  return `
+    <div class="stage">
+      <div class="stage-header" onclick="toggleStage('${id}')">
+        <span class="stage-title">${title}</span>
+        <span class="stage-chevron ${open?'open':''}">▶</span>
+      </div>
+      <div class="stage-body ${open?'open':''}" id="${id}">${content}</div>
+    </div>`;
+}
+
+function toggleStage(id) {
+  const body = document.getElementById(id);
+  const isOpen = body.classList.toggle('open');
+  const chevron = body.previousElementSibling.querySelector('.stage-chevron');
+  chevron.classList.toggle('open', isOpen);
+}
+
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function copyRaw() {
+  if (!lastResult) return;
+  navigator.clipboard.writeText(JSON.stringify(lastResult, null, 2));
+}
+</script>
+</body>
+</html>

@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Any
 from pydantic import BaseModel, Field
 
 class DoctorEntry(BaseModel):
@@ -44,3 +44,62 @@ class OrchestrationResponse(BaseModel):
     medical_report_pdf_url: str
     patient_summary_md: str
     administrative_metadata: dict
+
+# ── Debug / Testing models ─────────────────────────────────────────────────────
+
+class DebugDraftRequest(BaseModel):
+    """
+    Text-only entry point that bypasses audio entirely.
+    Injects the transcript directly after PII scrub and runs the full
+    LLM pipeline, returning every intermediate artifact for inspection.
+    """
+    patient_id: str = Field(..., description="Patient to load EHR context for.")
+    doctor_id: str = Field(default="D-99", description="Doctor ID for referral mapping.")
+    encounter_date: str = Field(default="2026-02-28T10:00:00Z", description="ISO 8601.")
+    language: str = Field(default="en", description="Patient summary language (en/hu/es).")
+    transcript: str = Field(..., description="Raw transcript text — replaces audio transcription step.")
+    skip_pii_scrub: bool = Field(
+        default=False,
+        description="If true, skips Presidio and sends the transcript verbatim to the LLM. "
+                    "Useful when transcript is already anonymized."
+    )
+
+class DebugStageResult(BaseModel):
+    """One stage of the debug pipeline trace."""
+    stage: str
+    input_preview: str
+    output: Any
+    warning: Optional[str] = None
+
+class DebugDraftResponse(BaseModel):
+    """
+    Full debug output — every intermediate in the pipeline exposed.
+    """
+    # DB context
+    patient_meta: dict
+    doctor_meta: dict
+    context_documents: List[dict]
+    available_doctor_categories: List[dict]
+    
+    # PII scrub
+    raw_transcript: str
+    scrubbed_transcript: str
+    token_map: dict
+
+    # LLM system context (exactly what gets injected into system prompt)
+    system_context_injected: str
+
+    # LLM Call 1: Clinical extraction
+    clinical_extraction_raw: dict       # before guardrail stripping
+    hallucinations_stripped: List[str]  # quotes that failed verbatim check
+    clinical_draft_validated: dict      # after guardrail
+    
+    # LLM Call 2: Patient summary
+    patient_summary_md: str
+
+    # Hydrated (PII restored)
+    clinical_final_hydrated: dict
+    patient_summary_hydrated: str
+
+    # Metadata context sent to all LLM calls
+    full_metadata: dict

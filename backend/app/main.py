@@ -10,7 +10,10 @@ from sqlalchemy.orm import Session
 from app.core.llm_client import LLMClient
 from app.core.database import get_db
 from app.services.db_service import DBService
-from app.models.api_models import EncounterMetadata, OrchestrationResponse, DraftResponse, FinalizeRequest, ConsultationRequest
+from app.models.api_models import (
+    EncounterMetadata, OrchestrationResponse, DraftResponse, FinalizeRequest,
+    ConsultationRequest, DebugDraftRequest, DebugDraftResponse
+)
 from app.services.pipeline import ZeroHallucinationPipeline
 from app.services.orchestrator import OrchestratorService
 from app.models.persistence_models import Patient, EHRDocument, MedicalCaseModel, AppointmentModel, Doctor
@@ -43,8 +46,21 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+import os as _os
+from fastapi.responses import FileResponse as _FileResponse
+
 # Serves generated PDFs statically (for hackathon easy access)
 app.mount("/outputs", StaticFiles(directory="/tmp"), name="outputs")
+
+_DEBUG_HTML = _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "..", "debug_console.html")
+
+@app.get("/debug", include_in_schema=False)
+@app.get("/debug/", include_in_schema=False)
+async def serve_debug_console():
+    """Serves the pipeline debug console HTML page."""
+    if _os.path.exists(_DEBUG_HTML):
+        return _FileResponse(_DEBUG_HTML, media_type="text/html")
+    return {"error": "debug_console.html not found — run from backend directory"}
 
 @app.get("/api/v1/patients")
 def get_patients(db: Session = Depends(get_db)):
@@ -169,6 +185,162 @@ async def test_generate_consultation(
     except Exception as e:
         logger.error(f"Test Orchestration Failed: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/v1/debug/run-draft", response_model=DebugDraftResponse)
+async def debug_run_draft(request: DebugDraftRequest, db: Session = Depends(get_db)):
+    """
+    DEBUG ENDPOINT — Text-only pipeline entry point for prompt engineering and integration testing.
+
+    Bypasses Azure Speech transcription entirely.  The provided `transcript` field is fed
+    directly into the PII scrubbing + LLM extraction pipeline, returning every intermediate
+    artifact for inspection:
+      - DB context loaded (EHR docs, doctors) — what the LLM sees
+      - Raw vs scrubbed transcript + token map
+      - The exact system_context string injected into the system prompt
+      - Raw LLM extraction output (before guardrail)
+      - Which exact_quote strings were stripped by the guardrail
+      - The validated clinical draft
+      - Patient summary (LLM call 2)
+      - Hydrated finals (PII restored)
+    """
+    import json
+    from app.services.scrubber import scrubber as _scrubber
+    from app.core.prompts import CLINICAL_EXTRACTION_SYSTEM_PROMPT, PATIENT_SUMMARY_SYSTEM_PROMPT
+
+    try:
+        # 1. Fetch DB context (same as production path)
+        patient_meta, context_docs = DBService.get_patient_context(db, request.patient_id)
+        if not patient_meta:
+            raise HTTPException(status_code=404, detail=f"Patient {request.patient_id} not found.")
+
+        doctor_meta = DBService.get_doctor_context(db, request.doctor_id)
+        available_doctors = DBService.get_available_doctors(db)
+        available_doctor_categories = [
+            {"doctor_id": d["doctor_id"], "specialty": d["specialty"]} for d in available_doctors
+        ]
+
+        full_metadata = {
+            "patient_id": request.patient_id,
+            "patient_name": patient_meta["name"],
+            "patient_taj": patient_meta["taj"],
+            "doctor_id": request.doctor_id,
+            "doctor_name": doctor_meta["name"],
+            "doctor_seal": doctor_meta["seal_number"],
+            "encounter_date": request.encounter_date,
+            "context_documents": context_docs,
+            "available_doctor_categories": available_doctor_categories,
+        }
+
+        # 2. PII Scrub (skippable for testing with already-anonymized text)
+        raw_transcript = request.transcript
+        if request.skip_pii_scrub:
+            scrubbed_transcript = raw_transcript
+            token_map = {}
+        else:
+            scrubbed_transcript, token_map = _scrubber.scrub(raw_transcript)
+
+        # 3. Build system_context string exactly as production does
+        system_context = json.dumps({
+            "context_documents": full_metadata.get("context_documents", []),
+            "available_doctor_categories": full_metadata.get("available_doctor_categories", [])
+        })
+
+        # 4. LLM Call 1: Clinical Extraction + Guardrail (instrumented)
+        pipeline = state.orchestrator.pipeline
+
+        thought_process = pipeline.generate_clinical_report(scrubbed_transcript, system_context)
+        raw_extraction = thought_process.final_validated_clinical_report.model_dump()
+
+        # Identify which quotes the guardrail would strip
+        hallucinations_stripped: list[str] = []
+        def _check_item(item: dict) -> bool:
+            quote = item.get("exact_quote", "")
+            valid = bool(quote) and scrubbed_transcript.find(quote) != -1
+            if not valid:
+                hallucinations_stripped.append(quote or "<empty quote>")
+            return valid
+
+        validated_clinical = {
+            "chief_complaints": [c for c in raw_extraction["chief_complaints"] if _check_item(c)],
+            "assessments": [a for a in raw_extraction["assessments"] if _check_item(a)],
+            "actionables": [act for act in raw_extraction["actionables"] if _check_item(act)],
+        }
+
+        # 5. LLM Call 2: Patient Summary
+        patient_summary_dict = pipeline.generate_patient_summary(
+            validated_clinical_dict=validated_clinical,
+            scrubbed_transcript=scrubbed_transcript,
+            system_context=system_context,
+            language=request.language,
+        )
+
+        # 6. Hydrate (restore PII tokens)
+        hydrated_clinical = _scrubber.hydrate_dict(validated_clinical, token_map)
+        hydrated_patient = _scrubber.hydrate_dict(patient_summary_dict, token_map)
+
+        return DebugDraftResponse(
+            patient_meta=patient_meta,
+            doctor_meta=doctor_meta,
+            context_documents=context_docs,
+            available_doctor_categories=available_doctor_categories,
+            raw_transcript=raw_transcript,
+            scrubbed_transcript=scrubbed_transcript,
+            token_map=token_map,
+            system_context_injected=system_context,
+            clinical_extraction_raw=raw_extraction,
+            hallucinations_stripped=hallucinations_stripped,
+            clinical_draft_validated=validated_clinical,
+            patient_summary_md=patient_summary_dict.get("layman_explanation", ""),
+            clinical_final_hydrated=hydrated_clinical,
+            patient_summary_hydrated=hydrated_patient.get("layman_explanation", ""),
+            full_metadata=full_metadata,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Debug Draft Failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/v1/debug/db-context/{patient_id}")
+async def debug_db_context(patient_id: str, doctor_id: str = "D-99", db: Session = Depends(get_db)):
+    """
+    DEBUG ENDPOINT — Dumps the exact system_context JSON that gets injected into every LLM prompt
+    for a given patient, so you can inspect what the model actually sees.
+
+    Also returns raw patient meta, doctor meta, and the full list of available doctors.
+    """
+    import json
+    patient_meta, context_docs = DBService.get_patient_context(db, patient_id)
+    if not patient_meta:
+        raise HTTPException(status_code=404, detail=f"Patient {patient_id} not found.")
+
+    doctor_meta = DBService.get_doctor_context(db, doctor_id)
+    available_doctors = DBService.get_available_doctors(db)
+    available_doctor_categories = [
+        {"doctor_id": d["doctor_id"], "specialty": d["specialty"]} for d in available_doctors
+    ]
+
+    system_context = json.dumps({
+        "context_documents": context_docs,
+        "available_doctor_categories": available_doctor_categories,
+    }, indent=2)
+
+    return {
+        "patient_meta": patient_meta,
+        "doctor_meta": doctor_meta,
+        "context_documents": context_docs,
+        "available_doctors_full": available_doctors,
+        "available_doctor_categories": available_doctor_categories,
+        "system_context_injected_into_llm": system_context,
+        "clinical_extraction_system_prompt_preview": (
+            f"[CLINICAL_EXTRACTION_SYSTEM_PROMPT with system_context injected — "
+            f"{len(system_context)} chars of context]"
+        ),
+    }
+
 
 @app.get("/api/v1/eeszt/patients")
 async def get_eeszt_patients(db: Session = Depends(get_db)):
