@@ -31,7 +31,7 @@ def test_guardrail_isolation_strips_hallucinations():
                 )
             ],
             assessments=[],
-            medications=[
+            actionables=[
                 ActionableItem(
                     action_type="PHARMACY_PICKUP",
                     description="Take aspirin",
@@ -57,5 +57,5 @@ def test_guardrail_isolation_strips_hallucinations():
     assert validated["chief_complaints"][0]["finding"] == "cough"
     
     assert len(validated["assessments"]) == 0
-    assert len(validated["medications"]) == 0
+    assert len(validated["actionables"]) == 0
 

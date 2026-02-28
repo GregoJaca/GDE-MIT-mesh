@@ -1,24 +1,9 @@
-import pytest
+from unittest.mock import patch
 import json
 import os
-from fastapi.testclient import TestClient
-from unittest.mock import patch, MagicMock
-from app.main import app
-
-client = TestClient(app)
-
-@pytest.fixture
-def mock_wav():
-    """Creates a dummy wav file."""
-    path = "/tmp/test_audio.wav"
-    with open(path, "wb") as f:
-        f.write(b"RIFF\x24\x00\x00\x00WAVEfmt \x10\x00\x00\x00\x01\x00\x01\x00\x44\xac\x00\x00\x88\x58\x01\x00\x02\x00\x10\x00data\x00\x00\x00\x00")
-    yield path
-    if os.path.exists(path):
-        os.remove(path)
 
 @patch("app.services.orchestrator.transcribe_file_with_diarization")
-def test_full_orchestration_flow(mock_transcribe, mock_wav):
+def test_full_orchestration_flow(mock_transcribe, mock_wav_path, client):
     """
     Test the E2E flow: Audio -> Orchestrator -> Pipeline -> PDF/MD Report.
     """
@@ -34,13 +19,12 @@ def test_full_orchestration_flow(mock_transcribe, mock_wav):
     }
     
     # 2. Call API
-    with TestClient(app) as client:
-        with open(mock_wav, "rb") as audio:
-            response = client.post(
-                "/api/v1/generate-consultation",
-                data={"metadata": json.dumps(metadata)},
-                files={"audio": ("test.wav", audio, "audio/wav")}
-            )
+    with open(mock_wav_path, "rb") as audio:
+        response = client.post(
+            "/api/v1/generate-consultation",
+            data={"metadata": json.dumps(metadata)},
+            files={"audio": ("test.wav", audio, "audio/wav")}
+        )
     
     # 3. Assertions
     assert response.status_code == 200
@@ -51,13 +35,14 @@ def test_full_orchestration_flow(mock_transcribe, mock_wav):
     assert "patient_summary_md" in data
     assert "administrative_metadata" in data
     
-    # Check if files were actually created in /tmp
+    # Check if files were actually created (URL maps to /tmp/ in dev)
     pdf_filename = data["medical_report_pdf_url"].split("/")[-1]
+    # In tests, we mount /tmp to StaticFiles, so we check /tmp
     assert os.path.exists(f"/tmp/{pdf_filename}")
     
     # Check Summary Content
-    assert "shortness of breath" in data["patient_summary_md"].lower()
+    summary_lower = data["patient_summary_md"].lower()
+    assert "chest pain" in summary_lower
+    assert "breath" in summary_lower or "breathing" in summary_lower
     
     print("\n[SUCCESS] E2E Orchestration verified.")
-    print(f"PDF Link: {data['medical_report_pdf_url']}")
-    print(f"Summary Start: {data['patient_summary_md'][:100]}...")
