@@ -49,27 +49,20 @@ def seed():
     db.add_all(patients)
 
     # ── Doctors ───────────────────────────────────────────────────────────────
-    # NOTE: doctor specialty is stored in-memory by DBService.get_available_doctors()
-    # via getattr(d, 'specialty', 'Specialist') because the column doesn't exist in the
-    # persistence model yet. We store it as an attribute on the object after creation
-    # so the seed works without a DB schema migration.
     doctors = [
         Doctor(id="D-99",  name="Dr. Sarah Miller",   seal_number="S-Miller-99"),
         Doctor(id="D-02",  name="Dr. John Cardio",    seal_number="S-Cardio-02"),
         Doctor(id="D-03",  name="Dr. Lena Neurology", seal_number="S-Neuro-03"),
         Doctor(id="D-04",  name="Dr. Tomas Ortho",    seal_number="S-Ortho-04"),
         Doctor(id="D-05",  name="Dr. Maria Derm",     seal_number="S-Derm-05"),
+        Doctor(id="D-100", name="Dr. Alan Grant",     seal_number="S-Grant-100"),
+        Doctor(id="D-101", name="Dr. Susan Ivanova",  seal_number="S-Ivanova-101"),
+        Doctor(id="D-102", name="Dr. Martin Brenner", seal_number="S-Brenner-102"),
     ]
     db.add_all(doctors)
-    # Flush so we can attach specialty metadata in EventCatalog description fields
-    # (the Doctor model has no specialty column; DBService uses getattr with fallback)
 
     # ── EHR Documents ─────────────────────────────────────────────────────────
-    # These are sent as opaque pointers into the LLM system context.
-    # The 'content' field is stored but NOT sent to the LLM (privacy by design).
-    # The test cases reference specific system_doc_ids — keep these in sync.
     ehr_docs = [
-        # ── P-001 Jean-Pierre de La-Fontaine ──
         EHRDocument(
             id="DOC-RAD-202", patient_id="P-001",
             doc_type="laboratory_result",
@@ -88,8 +81,6 @@ def seed():
             date=date(2026, 1, 20),
             content="12-lead ECG: Normal sinus rhythm, rate 72 bpm. No ST changes or Q waves.",
         ),
-
-        # ── P-10101 Jane Doe ──
         EHRDocument(
             id="DOC-DERM-001", patient_id="P-10101",
             doc_type="dermatology_consult",
@@ -108,8 +99,6 @@ def seed():
             date=date(2023, 9, 1),
             content="Influenza vaccine administered. COVID-19 booster administered.",
         ),
-
-        # ── PT-1002 Michael Chen ──
         EHRDocument(
             id="DOC-ER-099", patient_id="PT-1002",
             doc_type="emergency_room_triage",
@@ -128,8 +117,6 @@ def seed():
             date=date(2024, 2, 1),
             content="Initial physiotherapy assessment post-ACL injury. Quad weakness noted. ROM limited 0-95 degrees. Plan: 3x/week PT for 6 weeks pre-op.",
         ),
-
-        # ── PT-1003 Emma Watson ──
         EHRDocument(
             id="DOC-NEURO-88", patient_id="PT-1003",
             doc_type="neurology_consult",
@@ -173,6 +160,15 @@ def seed():
             title="Cardiovascular Risk Management", status="Active",
             description="Type 2 Diabetes + hypercholesterolaemia — dual risk factor management.",
             created_date=date(2026, 1, 15)),
+        MedicalCaseModel(id="CASE-006", patient_id="PT-1003", title="Hypothyroidism Management",
+            description="Initial diagnosis and management of Hypothyroidism.",
+            status="Active", created_date=date(2024, 3, 1)),
+        MedicalCaseModel(id="CASE-007", patient_id="PT-1003", title="Advanced Migraine Protocol",
+            description="Neurology consultation for continuous migraines.",
+            status="Active", created_date=date(2024, 3, 15)),
+        MedicalCaseModel(id="CASE-008", patient_id="PT-1003", title="Anxiety & Sleep Management",
+            description="Psychiatric management of anxiety related to chronic pain.",
+            status="Active", created_date=date(2024, 4, 1)),
     ]
     db.add_all(cases)
 
@@ -202,6 +198,52 @@ def seed():
             date=date(2026, 2, 10), topic="Cardiovascular Risk Review", status="Pending",
             report="",
             patient_summary=""),
+
+        AppointmentModel(id="APP-007", patient_id="PT-1003", case_id="CASE-006",
+            date=date(2024, 3, 1), topic="Endocrinology Initial", doctor_id="D-100",
+            status="Review Required",
+            report="Patient diagnosed with hypothyroidism based on labs.",
+            patient_summary="You were diagnosed with Hypothyroidism. We are starting Levothyroxine."),
+        AppointmentModel(id="APP-008", patient_id="PT-1003", case_id="CASE-007",
+            date=date(2024, 3, 15), topic="Neurology Consult", doctor_id="D-101",
+            status="Completed",
+            report="Escalating migraine frequency. Switching to Propranolol.",
+            patient_summary="We switched your preventative meds to Propranolol."),
+        AppointmentModel(id="APP-009", patient_id="PT-1003", case_id="CASE-007",
+            date=date(2024, 6, 15), topic="Neurology Followup 1", doctor_id="D-101",
+            status="Completed",
+            report="3-month review. Increased Propranolol due to severity.",
+            patient_summary="We increased your Propranolol dosage to help further reduce attacks."),
+        AppointmentModel(id="APP-010", patient_id="PT-1003", case_id="CASE-007",
+            date=date(2024, 9, 15), topic="Neurology Followup 2", doctor_id="D-101",
+            status="Completed",
+            report="6-month review. Added Promethazine for nausea.",
+            patient_summary="We added an anti-nausea pill alongside your rescue meds."),
+        AppointmentModel(id="APP-011", patient_id="PT-1003", case_id="CASE-008",
+            date=date(2024, 4, 1), topic="Psychiatry Intake", doctor_id="D-102",
+            status="Completed",
+            report="Intake. Prescribed Sertraline 50mg for Generalized Anxiety.",
+            patient_summary="We started you on Sertraline for your anxiety."),
+        AppointmentModel(id="APP-012", patient_id="PT-1003", case_id="CASE-008",
+            date=date(2024, 5, 1), topic="Psychiatry Session 2", doctor_id="D-102",
+            status="Completed",
+            report="Med check. Prescribed Trazodone 50mg for Insomnia.",
+            patient_summary="We added Trazodone to help you sleep at night."),
+        AppointmentModel(id="APP-013", patient_id="PT-1003", case_id="CASE-008",
+            date=date(2024, 6, 1), topic="Psychiatry Session 3", doctor_id="D-102",
+            status="Completed",
+            report="Dose adjustment. Increased Sertraline to 100mg.",
+            patient_summary="We increased your Sertraline dosage now that you are acclimated."),
+        AppointmentModel(id="APP-014", patient_id="PT-1003", case_id="CASE-008",
+            date=date(2024, 9, 1), topic="Psychiatry Session 4", doctor_id="D-102",
+            status="Completed",
+            report="Stable maintenance.",
+            patient_summary="Everything is stable, we continue with current dosages."),
+        AppointmentModel(id="APP-015", patient_id="PT-1003", case_id="CASE-008",
+            date=date(2025, 2, 1), topic="Psychiatry Session 5", doctor_id="D-102",
+            status="Completed",
+            report="Annual review. Added PRN Hydroxyzine to the regimen.",
+            patient_summary="We added Hydroxyzine for severe panic alongside your usual meds."),
     ]
     db.add_all(appointments)
 
@@ -231,6 +273,95 @@ def seed():
             drug_name_strength="Topiramate 25mg", active_ingredient="Topiramate",
             dosage_instructions="1 tablet twice daily for prevention",
             status="Kiváltva", expiry_date=date(2025, 2, 10)),
+        ERecept(id="RX-010", patient_id="PT-1003", doctor_id="D-99", appointment_id="APP-005",
+            drug_name_strength="Ondansetron 4mg ODT", active_ingredient="Ondansetron",
+            dosage_instructions="Dissolve 1 tablet on tongue every 8 hours as needed", status="Kiváltható",
+            expiry_date=date(2025, 2, 10), external_document_link="ext-rx-doc-890"),
+        ERecept(id="RX-011", patient_id="PT-1003", doctor_id="D-99", appointment_id="APP-005",
+            drug_name_strength="Naproxen 500mg", active_ingredient="Naproxen",
+            dosage_instructions="Take 1 tablet twice daily with food as needed", status="Kiváltható",
+            expiry_date=date(2025, 2, 10), external_document_link="ext-rx-doc-891"),
+        ERecept(id="RX-012", patient_id="PT-1003", doctor_id="D-99", appointment_id="APP-005",
+            drug_name_strength="Magnesium Oxide 400mg", active_ingredient="Magnesium",
+            dosage_instructions="Take 1 tablet daily", status="Kiváltható",
+            expiry_date=date(2025, 2, 10), external_document_link="ext-rx-doc-892"),
+        
+        ERecept(id="RX-013", patient_id="PT-1003", doctor_id="D-100", appointment_id="APP-007",
+            drug_name_strength="Levothyroxine 50mcg", active_ingredient="Levothyroxine",
+            dosage_instructions="Take 1 tablet daily in the morning", status="Kiváltható",
+            expiry_date=date(2025, 3, 1), external_document_link="ext-rx-doc-004"),
+        ERecept(id="RX-014", patient_id="PT-1003", doctor_id="D-101", appointment_id="APP-008",
+            drug_name_strength="Propranolol 40mg", active_ingredient="Propranolol",
+            dosage_instructions="Take 1 tablet twice daily", status="Kiváltható",
+            expiry_date=date(2025, 3, 15), external_document_link="ext-rx-doc-005"),
+        ERecept(id="RX-015", patient_id="PT-1003", doctor_id="D-101", appointment_id="APP-008",
+            drug_name_strength="Rizatriptan 10mg", active_ingredient="Rizatriptan",
+            dosage_instructions="Take 1 tablet at onset of migraine", status="Kiváltható",
+            expiry_date=date(2025, 3, 15), external_document_link="ext-rx-doc-006"),
+        ERecept(id="RX-016", patient_id="PT-1003", doctor_id="D-101", appointment_id="APP-009",
+            drug_name_strength="Propranolol 60mg", active_ingredient="Propranolol",
+            dosage_instructions="Take 1 tablet twice daily", status="Kiváltható",
+            expiry_date=date(2025, 6, 15), external_document_link="ext-rx-doc-007"),
+        ERecept(id="RX-017", patient_id="PT-1003", doctor_id="D-101", appointment_id="APP-009",
+            drug_name_strength="Rizatriptan 10mg", active_ingredient="Rizatriptan",
+            dosage_instructions="Take 1 tablet at onset of migraine", status="Kiváltható",
+            expiry_date=date(2025, 6, 15), external_document_link="ext-rx-doc-008"),
+        ERecept(id="RX-018", patient_id="PT-1003", doctor_id="D-101", appointment_id="APP-009",
+            drug_name_strength="Riboflavin 400mg", active_ingredient="Riboflavin",
+            dosage_instructions="Take 1 tablet daily", status="Kiváltható",
+            expiry_date=date(2025, 6, 15), external_document_link="ext-rx-doc-009"),
+        ERecept(id="RX-019", patient_id="PT-1003", doctor_id="D-101", appointment_id="APP-010",
+            drug_name_strength="Propranolol 60mg", active_ingredient="Propranolol",
+            dosage_instructions="Take 1 tablet twice daily", status="Kiváltható",
+            expiry_date=date(2025, 9, 15), external_document_link="ext-rx-doc-010"),
+        ERecept(id="RX-020", patient_id="PT-1003", doctor_id="D-101", appointment_id="APP-010",
+            drug_name_strength="Rizatriptan 10mg", active_ingredient="Rizatriptan",
+            dosage_instructions="Take 1 tablet at onset of migraine", status="Kiváltható",
+            expiry_date=date(2025, 9, 15), external_document_link="ext-rx-doc-011"),
+        ERecept(id="RX-021", patient_id="PT-1003", doctor_id="D-101", appointment_id="APP-010",
+            drug_name_strength="Promethazine 25mg", active_ingredient="Promethazine",
+            dosage_instructions="Take 1 tablet every 6 hours as needed for nausea", status="Kiváltható",
+            expiry_date=date(2025, 9, 15), external_document_link="ext-rx-doc-012"),
+        ERecept(id="RX-022", patient_id="PT-1003", doctor_id="D-102", appointment_id="APP-011",
+            drug_name_strength="Sertraline 50mg", active_ingredient="Sertraline",
+            dosage_instructions="Take 1 tablet daily in the morning", status="Kiváltható",
+            expiry_date=date(2025, 4, 1), external_document_link="ext-rx-doc-013"),
+        ERecept(id="RX-023", patient_id="PT-1003", doctor_id="D-102", appointment_id="APP-012",
+            drug_name_strength="Sertraline 50mg", active_ingredient="Sertraline",
+            dosage_instructions="Take 1 tablet daily in the morning", status="Kiváltható",
+            expiry_date=date(2025, 5, 1), external_document_link="ext-rx-doc-014"),
+        ERecept(id="RX-024", patient_id="PT-1003", doctor_id="D-102", appointment_id="APP-012",
+            drug_name_strength="Trazodone 50mg", active_ingredient="Trazodone",
+            dosage_instructions="Take 1 tablet at bedtime", status="Kiváltható",
+            expiry_date=date(2025, 5, 1), external_document_link="ext-rx-doc-015"),
+        ERecept(id="RX-025", patient_id="PT-1003", doctor_id="D-102", appointment_id="APP-013",
+            drug_name_strength="Sertraline 100mg", active_ingredient="Sertraline",
+            dosage_instructions="Take 1 tablet daily in the morning", status="Kiváltható",
+            expiry_date=date(2025, 6, 1), external_document_link="ext-rx-doc-016"),
+        ERecept(id="RX-026", patient_id="PT-1003", doctor_id="D-102", appointment_id="APP-013",
+            drug_name_strength="Trazodone 50mg", active_ingredient="Trazodone",
+            dosage_instructions="Take 1 tablet at bedtime", status="Kiváltható",
+            expiry_date=date(2025, 6, 1), external_document_link="ext-rx-doc-017"),
+        ERecept(id="RX-027", patient_id="PT-1003", doctor_id="D-102", appointment_id="APP-014",
+            drug_name_strength="Sertraline 100mg", active_ingredient="Sertraline",
+            dosage_instructions="Take 1 tablet daily in the morning", status="Kiváltható",
+            expiry_date=date(2025, 9, 1), external_document_link="ext-rx-doc-018"),
+        ERecept(id="RX-028", patient_id="PT-1003", doctor_id="D-102", appointment_id="APP-014",
+            drug_name_strength="Trazodone 50mg", active_ingredient="Trazodone",
+            dosage_instructions="Take 1 tablet at bedtime", status="Kiváltható",
+            expiry_date=date(2025, 9, 1), external_document_link="ext-rx-doc-019"),
+        ERecept(id="RX-029", patient_id="PT-1003", doctor_id="D-102", appointment_id="APP-015",
+            drug_name_strength="Sertraline 100mg", active_ingredient="Sertraline",
+            dosage_instructions="Take 1 tablet daily in the morning", status="Kiváltható",
+            expiry_date=date(2026, 2, 1), external_document_link="ext-rx-doc-020"),
+        ERecept(id="RX-030", patient_id="PT-1003", doctor_id="D-102", appointment_id="APP-015",
+            drug_name_strength="Trazodone 50mg", active_ingredient="Trazodone",
+            dosage_instructions="Take 1 tablet at bedtime", status="Kiváltható",
+            expiry_date=date(2026, 2, 1), external_document_link="ext-rx-doc-021"),
+        ERecept(id="RX-031", patient_id="PT-1003", doctor_id="D-102", appointment_id="APP-015",
+            drug_name_strength="Hydroxyzine 25mg", active_ingredient="Hydroxyzine",
+            dosage_instructions="Take 1 tablet as needed for severe anxiety", status="Kiváltható",
+            expiry_date=date(2026, 2, 1), external_document_link="ext-rx-doc-022"),
     ]
     db.add_all(prescriptions)
 

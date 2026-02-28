@@ -43,32 +43,6 @@
             text-decoration: underline;
         }
 
-        .vital-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 15px;
-            margin-top: 10px;
-        }
-
-        .vital-item {
-            border-left: 2px solid #000;
-            padding-left: 10px;
-        }
-
-        .vital-label {
-            font-weight: bold;
-            font-size: 9pt;
-            text-transform: uppercase;
-            color: #555;
-            display: block;
-        }
-
-        .vital-value {
-            font-weight: bold;
-            font-size: 11pt;
-            color: #000;
-        }
-
         .no-data {
             color: #888;
             font-style: italic;
@@ -79,6 +53,13 @@
             margin-top: 5px;
             padding-left: 20px;
         }
+
+        .ref-link {
+            font-size: 9pt;
+            color: blue;
+            text-decoration: none;
+            margin-left: 8px;
+        }
     </style>
 </head>
 
@@ -87,66 +68,70 @@
     {% include '_header.html' %}
 
     <div class="section">
-        <h2 class="section-title">I. Subjective</h2>
+        <h2 class="section-title">I. Subjective (Chief Complaints)</h2>
         <div class="content">
-            <div class="sub-header">Chief Complaint</div>
-            {{ dynamic_data.get('chief_complaint', '<span class="no-data">Not provided</span>')|safe }}
-
-            <div class="sub-header" style="margin-top: 15px;">History of Present Illness</div>
-            {{ dynamic_data.get('history_of_present_illness', '<span class="no-data">Not provided</span>')|safe }}
-        </div>
-    </div>
-
-    <div class="section">
-        <h2 class="section-title">II. Objective</h2>
-
-        <div class="sub-header">Vital Signs</div>
-        <div class="vital-grid">
-            {% set vitals = dynamic_data.get('vital_signs', {}) %}
-            {% if vitals %}
-            {% for key, val in vitals.items() %}
-            <div class="vital-item">
-                <span class="vital-label">{{ key|replace('_', ' ')|title }}</span>
-                <span class="vital-value">{{ val }}</span>
-            </div>
-            {% endfor %}
+            {% set complaints = dynamic_data.get('chief_complaints', []) %}
+            {% if complaints %}
+            <ul>
+                {% for c in complaints %}
+                <li>
+                    <strong>{{ c.finding|title }}</strong> (Status: {{ c.condition_status }})
+                    {% if c.system_reference_id %}
+                    <a class="ref-link" href="/registry/docs/{{ c.system_reference_id }}">[{{ c.system_reference_id
+                        }}]</a>
+                    {% endif %}
+                </li>
+                {% endfor %}
+            </ul>
             {% else %}
-            <span class="no-data">No vital signs recorded.</span>
+            <span class="no-data">Not provided</span>
             {% endif %}
         </div>
-
-        <div class="sub-header" style="margin-top: 20px;">Physical Examination Findings</div>
-        <div class="content">
-            {{ dynamic_data.get('physical_exam', '<span class="no-data">Not provided</span>')|safe }}
-        </div>
     </div>
 
     <div class="section">
-        <h2 class="section-title">III. Assessment</h2>
+        <h2 class="section-title">II. Objective & Assessment</h2>
         <div class="content">
-            {{ dynamic_data.get('assessment', '<span class="no-data">Not provided</span>')|safe }}
+            {% set assessments = dynamic_data.get('assessments', []) %}
+            {% if assessments %}
+            <ul>
+                {% for a in assessments %}
+                <li>
+                    <strong>{{ a.finding|title }}</strong> (Status: {{ a.condition_status }})
+                    {% if a.system_reference_id %}
+                    <a class="ref-link" href="/registry/docs/{{ a.system_reference_id }}">[{{ a.system_reference_id
+                        }}]</a>
+                    {% endif %}
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <span class="no-data">Not provided</span>
+            {% endif %}
         </div>
     </div>
 
     <div class="section" style="border-bottom: none;">
-        <h2 class="section-title">IV. Plan</h2>
+        <h2 class="section-title">III. Plan (Actionables)</h2>
         <div class="content">
-            {% set plan_data = dynamic_data.get('plan', []) %}
-            {% if plan_data and plan_data is iterable and plan_data is not string and plan_data[0] is mapping %}
+            {% set actionables = dynamic_data.get('actionables', []) %}
+            {% if actionables %}
             <ol>
-                {% for p in plan_data %}
-                <li><strong>{{ p.action_item }}</strong> ({{ p.type|replace('_', ' ')|title }})</li>
+                {% for p in actionables %}
+                <li>
+                    <strong>{{ p.description }}</strong> ({{ p.action_type|replace('_', ' ')|title }})
+                    {% if p.system_reference_id %}
+                    <a class="ref-link" href="/registry/docs/{{ p.system_reference_id }}">[{{ p.system_reference_id
+                        }}]</a>
+                    {% endif %}
+                </li>
                 {% endfor %}
             </ol>
             {% else %}
-            {{ dynamic_data.get('plan', '<span class="no-data">Not provided</span>')|safe }}
+            <span class="no-data">Not provided</span>
             {% endif %}
         </div>
     </div>
-
-</body>
-
-</html>
 
 </body>
 

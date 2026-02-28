@@ -2,18 +2,12 @@
     "metadata": {
         "patient_id": "PT-1002",
         "patient_name": "Michael Chen",
-        "patient_taj": "987-654-321",
         "doctor_id": "D-99",
-        "doctor_name": "Dr. Robert James",
-        "doctor_seal": "S-James-11",
-        "encounter_date": "2024-01-15T14:30:00Z",
+        "doctor_name": "Dr. Sarah Miller",
+        "encounter_date": "2024-01-15T11:00:00Z",
         "context_documents": [
-            {
-                "type": "emergency_room_triage",
-                "system_doc_id": "DOC-ER-099",
-                "date": "2024-01-12"
-            }
+            "DOC-ER-099"
         ]
     },
-    "transcript": "Hi Michael. Let's take a look at that right knee. I understand from the ER triage notes from three days ago that you had a skiing accident. You mentioned feeling a pop, which is concerning. On examination, I feel a moderate effusion here. Let me perform the Lachman test... yes, there is laxity, and I also note joint line tenderness. Based on this, I suspect either an ACL tear or a meniscus injury. We need to order an MRI of the right knee immediately to confirm. Because of the severity, I am going to refer you to an orthopedic surgery specialist for a consultation on possible ligament repair. I am prescribing several medications for you today: Celecoxib 200 milligrams to take one capsule daily, Cyclobenzaprine 5 milligrams to take one tablet at bedtime as needed for muscle spasms, Tramadol 50 milligrams to take one tablet every 6 hours as needed for severe pain, and Pantoprazole 40 milligrams to take one tablet daily before breakfast to protect your stomach. You must use crutches and keep minimal weight bearing on that leg until we review the MRI results."
+    "transcript": "Doctor: Good morning, Michael. I read the triage notes from the ER regarding your skiing incident. How is your right knee feeling today?\n\nPatient: Hi Doctor. It's incredibly swollen and painful. I can't put any weight on it at all without it feeling unstable. It felt like my knee just buckled under me on the mountain.\n\nDoctor: I'm sorry to hear that. Based on the swelling and the 'pop' you described, we are looking at a possible meniscus injury or an ACL tear. I'm ordering an MRI immediately to confirm the diagnosis.\n\nPatient: That makes sense. Is there anything I can take for the pain right now? The over-the-counter stuff isn't doing enough.\n\nDoctor: Yes, absolutely. I am prescribing Celecoxib 200mg—take one capsule daily for the inflammation. Since you mentioned muscle spasms around the joint, I'm also prescribing Cyclobenzaprine 5mg to take one tablet at bedtime as needed.\n\nPatient: Thank you. What if the pain gets really severe during the day while I wait for the MRI?\n\nDoctor: For severe breakthrough pain, I am prescribing Tramadol 50mg, take 1 tablet every 6 hours as needed. Because you'll be on NSAIDs, which can upset the stomach, please also take Pantoprazole 40mg—1 tablet daily before breakfast to protect your stomach lining. Let's touch base as soon as the MRI is back."
 }

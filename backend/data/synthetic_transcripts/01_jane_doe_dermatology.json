@@ -2,18 +2,12 @@
     "metadata": {
         "patient_id": "P-10101",
         "patient_name": "Jane Doe",
-        "patient_taj": "123-456-789",
         "doctor_id": "D-99",
         "doctor_name": "Dr. Sarah Miller",
-        "doctor_seal": "S-Miller-99",
-        "encounter_date": "2024-02-28T10:00:00Z",
+        "encounter_date": "2024-02-28T14:30:00Z",
         "context_documents": [
-            {
-                "type": "dermatology_consult",
-                "system_doc_id": "DOC-DERM-001",
-                "date": "2024-02-20"
-            }
+            "DOC-DERM-001"
         ]
     },
-    "transcript": "Hello Jane. Today we are doing a follow-up evaluation of the pigmented lesion on your right forearm that you mentioned last week. Looking at it through the dermoscope, the lesion is about 4 millimeters wide. It is asymmetrical and has irregular borders. Comparing it to the earlier consult note, it seems to have changed slightly. I see an atypical network here. Because of these features, I recommend an excisional biopsy to rule out melanoma. It's a quick procedure we can schedule for next week. I am also referring you to a surgical oncologist specialist for a consultation regarding this lesion. For your care at home, I am prescribing Mupirocin 2 percent ointment to apply to the affected area three times daily for 7 days, and a Chlorhexidine 4 percent wash to use once daily as a skin cleanser. I am also prescribing Ibuprofen 400mg, which you can take one tablet every 6 hours as needed for any pain after the biopsy. In the meantime, please remember our counseling on sun protection and continue doing your regular skin self-examinations."
+    "transcript": "Doctor: Hello, Jane. How have you been since our last review of that pigmented lesion on your right forearm?\n\nPatient: Hi Doctor. Honestly, I'm a bit nervous. I feel like it's gotten slightly darker over the past week, and it's starting to itch mildly.\n\nDoctor: Okay, let's take a look. Ah, I see what you mean. Given that it has irregular borders and has changed recently, I strongly recommend we proceed with an excisional biopsy today to be absolutely safe.\n\nPatient: I agree. Will it hurt, or will it leave a big scar? I just want to know how to take care of it right after the procedure is done.\n\nDoctor: Don't worry, we'll use local anesthesia so you won't feel anything during the excision. The scar should be minimal. For aftercare, I am prescribing Mupirocin 2% Ointment; apply it to the affected area 3 times daily for 7 days. Also, use Chlorhexidine 4% Wash once daily as a skin cleanser around the area to prevent infection.\n\nPatient: Thank you, I'll pick those up. Should I expect much pain after the anesthesia wears off?\n\nDoctor: There might be some mild discomfort. I'm also prescribing Ibuprofen 400mg—take 1 tablet every 6 hours as needed for pain. Please schedule a follow-up in two weeks so we can remove the sutures and go over the biopsy results together."
 }

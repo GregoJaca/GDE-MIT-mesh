@@ -28,3 +28,10 @@ dist-ssr
 *.sln
 *.sw?
 .vite/
+
+backend/mesh_clinical.db
+*clinical_report.pdf
+*clinical_report.md
+*patient_summary.md
+*raw_extraction.json
+*example_fmt*

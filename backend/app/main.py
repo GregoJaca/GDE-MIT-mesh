@@ -249,7 +249,14 @@ async def debug_run_draft(request: DebugDraftRequest, db: Session = Depends(get_
         })
 
         # 4. LLM Call 1: Clinical Extraction + Guardrail (instrumented)
-        pipeline = state.orchestrator.pipeline
+        # Handle case when called directly from TestClient outside lifespan 
+        if state.orchestrator and state.orchestrator.pipeline:
+            pipeline = state.orchestrator.pipeline
+        else:
+            from app.core.llm_client import LLMClient
+            from app.services.pipeline import ZeroHallucinationPipeline
+            llm = LLMClient()
+            pipeline = ZeroHallucinationPipeline(llm=llm)
 
         thought_process = pipeline.generate_clinical_report(scrubbed_transcript, system_context)
         raw_extraction = thought_process.final_validated_clinical_report.model_dump()

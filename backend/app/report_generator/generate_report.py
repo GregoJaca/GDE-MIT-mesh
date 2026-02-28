@@ -57,6 +57,8 @@ def generate_report(json_file_path, format_id, output_path):
     # Check for the new dynamic_parameters JSON structure first, otherwise fall back to dynamic_data.
     if 'dynamic_parameters' in data and 'standard_clinical' in data['dynamic_parameters']:
         dynamic_data = data['dynamic_parameters']['standard_clinical']
+    elif 'clinical_data' in data:
+        dynamic_data = data['clinical_data']
     else:
         dynamic_data = data.get('dynamic_data', data)
     
@@ -115,6 +117,8 @@ def generate_report_from_dict(data: dict, format_id: str, output_path: str):
     
     if 'dynamic_parameters' in data and 'standard_clinical' in data['dynamic_parameters']:
         dynamic_data = data['dynamic_parameters']['standard_clinical']
+    elif 'clinical_data' in data:
+        dynamic_data = data['clinical_data']
     else:
         dynamic_data = data.get('dynamic_data', data)
         
