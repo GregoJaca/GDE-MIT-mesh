@@ -75,3 +75,51 @@ class DBService:
             {"patient_id": p.id, "name": p.name, "taj": p.taj, "dob": str(p.date_of_birth)}
             for p in patients
         ]
+
+    @staticmethod
+    def save_consultation_results(db: Session, patient_id: str, doctor_id: str, encounter_date: str, pdf_url: str, patient_summary: str):
+        """Persists the finished consultation artifacts into the patient's case and appointment timeline."""
+        from app.models.persistence_models import MedicalCaseModel, AppointmentModel
+        import uuid
+        from dateutil.parser import parse
+        import datetime
+        
+        try:
+            dt = parse(encounter_date).date()
+        except:
+            dt = datetime.date.today()
+            
+        # Bind to an active case, or create a new ambient tracking case
+        active_case = db.query(MedicalCaseModel).filter(
+            MedicalCaseModel.patient_id == patient_id,
+            MedicalCaseModel.status == "Active"
+        ).order_by(MedicalCaseModel.created_date.desc()).first()
+        
+        if not active_case:
+            active_case = MedicalCaseModel(
+                id=f"CASE-AMB-{str(uuid.uuid4())[:6].upper()}",
+                patient_id=patient_id,
+                title="Ambient Consultation",
+                description="New active case tracking ambient workflow findings.",
+                status="Active",
+                created_date=dt,
+                icon="Activity"
+            )
+            db.add(active_case)
+            db.commit()
+            
+        # Insert the final appointment payload
+        app_id = f"APP-AMB-{str(uuid.uuid4())[:6].upper()}"
+        appointment = AppointmentModel(
+            id=app_id,
+            patient_id=patient_id,
+            case_id=active_case.id,
+            date=dt,
+            topic="Recorded AI Consultation",
+            doctor_id=doctor_id,
+            status="Completed",
+            report=pdf_url,
+            patient_summary=patient_summary
+        )
+        db.add(appointment)
+        db.commit()

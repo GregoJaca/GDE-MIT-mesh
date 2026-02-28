@@ -155,8 +155,20 @@ async def finalize_report(request: FinalizeRequest, db: Session = Depends(get_db
             format_id=request.format_id
         )
         
+        pdf_url = f"/outputs/{pdf_path.split('/')[-1]}"
+        
+        # Persist the finalized artifacts to the database so they appear in the dashboard
+        DBService.save_consultation_results(
+            db=db,
+            patient_id=request.patient_id,
+            doctor_id=request.doctor_id,
+            encounter_date=request.encounter_date,
+            pdf_url=pdf_url,
+            patient_summary=hydrated_patient["layman_explanation"]
+        )
+        
         return OrchestrationResponse(
-            medical_report_pdf_url=f"/outputs/{pdf_path.split('/')[-1]}",
+            medical_report_pdf_url=pdf_url,
             patient_summary_md=request.patient_summary_md or "Finalized",
             administrative_metadata={
                 "patient_id": request.patient_id,

@@ -108,11 +108,6 @@ class OrchestratorService:
         patient_id = full_metadata["patient_id"]
         logger.info(f"Completing consultation (generating PDF) for patient {patient_id}")
         
-        soap_dynamic_data = (
-            self._build_soap_dynamic_data(hydrated_clinical, source_label="audio consultation")
-            if format_id == "fmt_001" else hydrated_clinical
-        )
-
         doc_payload = {
             "universal_header": {
                 "patient_name": full_metadata["patient_name"],
@@ -121,7 +116,7 @@ class OrchestratorService:
                 "doctor_name": full_metadata["doctor_name"],
                 "date": full_metadata["encounter_date"]
             },
-            "dynamic_data": soap_dynamic_data
+            "dynamic_data": hydrated_clinical
         }
         
         output_pdf = f"/tmp/medical_report_{patient_id}.pdf"
@@ -182,11 +177,6 @@ class OrchestratorService:
         )
         
         # 4. Document Generation
-        soap_dynamic_data = (
-            self._build_soap_dynamic_data(hydrated_clinical, source_label="clinical text input")
-            if format_id == "fmt_001" else hydrated_clinical
-        )
-
         doc_payload = {
             "universal_header": {
                 "patient_name": patient_meta["name"],
@@ -195,7 +185,7 @@ class OrchestratorService:
                 "doctor_name": doctor_meta["name"],
                 "date": encounter_date
             },
-            "dynamic_data": soap_dynamic_data
+            "dynamic_data": hydrated_clinical
         }
         
         output_pdf = f"/tmp/medical_report_text_{patient_id}.pdf"
