@@ -1,33 +1,35 @@
 # Architecture: Zero-Hallucination Engine
 
-Echo's paramount engineering directive is absolute factual accuracy. We transform noisy human dialogue into deterministic, database-safe records. This is achieved via our **Schema-Enforced Extraction** pipeline, powered by **GPT-5.2**.
+Echo's paramount engineering directive is absolute factual accuracy. We transform noisy human dialogue into deterministic, database-safe records. This is achieved via our **Schema-Enforced Extraction** pipeline, powered natively by **Azure OpenAI Structured Outputs**.
 
 ## Pipeline Flow
 
 ```mermaid
-%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#ffffff', 'primaryBorderColor': '#000000', 'primaryTextColor': '#000000', 'lineColor': '#000000', 'secondaryColor': '#ffffff', 'tertiaryColor': '#ffffff'}}}%%
 graph TD
+    classDef default fill:#111,stroke:#333,stroke-width:1px,color:#eee;
+    
     A[Doctor Browser: MediaRecorder / Audio Blob] -->|POST /api/v1/generate-draft| B(Backend Ingestion)
     B --> C{Speech-to-Text Transcription}
-    C -->|Raw Transcript String| D[PII Scrubbing Layer]
-    D --> E[LangChain + GPT-5.2]
+    C -->|Raw Transcript| D[PII Scrubbing Layer]
+    D --> E[Azure OpenAI API]
     
     subgraph Zero-Hallucination Enforcement
-        E -->|Attempt Extraction| F(Pydantic Schema Validator)
-        F -- Fails Validation (No exact quote match) --> E
-        F -- Passes Validation --> G[Strict Clinical JSON]
+        E -->|Native Structured Output| F(Pydantic Schema Parser)
+        F --> G[Python Deterministic Guardrail]
+        G -- Substring Missing --> H[Strip Hallucination]
+        G -- Substring Match --> I[Strict Clinical JSON]
     end
     
-    G --> H[Frontend: Doctor Review & Audit]
-    H -->|POST /api/v1/finalize-report| I(Finalizing Engine)
+    I --> J[Frontend: Doctor Review & Audit]
+    J -->|POST /api/v1/finalize-report| K(Finalizing Engine)
     
-    I --> J[Hospital EMR Representation]
-    I --> K[Patient App Summary Payload]
+    K --> L[Hospital EMR Representation]
+    K --> M[Patient App Summary Payload]
 ```
 
 ## Implementing Zero-Hallucination
 
-Traditional LLMs generate tokens probabilistically. We bypass this by forcing **GPT-5.2** to call internal tools structured by `pydantic`. The model is stripped of its ability to use "filler" or "generative" vocabulary.
+Traditional LLMs generate tokens probabilistically. We bypass this by forcing the model to reply exclusively via OpenAI's `beta.chat.completions.parse` method, which guarantees the structure physically matches our `pydantic` schemas.
 
 ```python
 # snippet from backend/app/models/llm_schemas.py
@@ -50,4 +52,13 @@ class ClinicalFinding(BaseModel):
     )
 ```
 
-Because the validator aggressively parses the `exact_quote` against the initial audio transcript, the LLM is artificially constrained. If the model hallucinates a fact—meaning the specific word was never physically spoken—the substring check fails, and the extraction is dropped. This surfaces an unbroken, transparent audit trail directly to the physician in the frontend UI.
+Once the LLM returns the parsed Pydantic object, our backend executes a **Deterministic Guardrail** (inside `ZeroHallucinationPipeline.validate_quotes`). This is a zero-tolerance Python validation step:
+
+```python
+# The Deterministic Guardrail Check
+exists = scrubbed_transcript.find(quote) != -1
+if not exists:
+    logger.warning(f"Guardrail Trip: Hallucinated quote stripped: '{quote}'")
+```
+
+If the model hallucinates a fact—meaning the specific word was never physically spoken—the substring check fails (`-1`), and the entire extraction node is dropped from the report. Because this validation uses native `string.find()`, it is computationally trivial, requires zero additional LLM latency, and is mathematically infallible. This surfaces an unbroken, transparent audit trail directly to the physician in the frontend UI.
