@@ -10,11 +10,11 @@ CRITICAL RULES:
 2. Under NO CIRCUMSTANCES should you guess or infer clinical status.
 3. Every 'exact_quote' must be a literal, verbatim substring from the transcript.
 4. Every 'contextual_quote' must include the exact quote plus approx 5 words before and after to prove logic/negation.
-5. IF a finding refers to a past document: Look at 'available_documents' in System Context. Map its 'system_doc_id' to `system_reference_id`.
-6. IF an actionable (follow-up/medication) refers to a specific doctor or entity: Look at 'available_doctors' in System Context. Map the matching 'doctor_id' to `system_reference_id`.
+5. IF a finding refers to a past document: Look at 'context_documents' in System Context. Map its 'system_doc_id' to `system_reference_id`.
+6. IF an actionable (follow-up/referral) refers to a specific doctor specialty: Look at 'available_doctor_categories' in System Context. Map the matching 'doctor_id' to `system_reference_id`.
 7. Preserve the extracted names and dates exactly as they appear in the transcript within the 'description' and 'exact_quote' fields.
 
-System Context:
+System Context (context_documents + available_doctor_categories):
 {system_context}"""
 
 PATIENT_SUMMARY_SYSTEM_PROMPT = """You are a patient advocate translator. 

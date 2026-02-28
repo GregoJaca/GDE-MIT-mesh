@@ -9,7 +9,7 @@ import { APP_CONFIG } from '@/config/app.config';
 import type { Patient, PatientContext, ClinicalDraftJson, DraftResponse } from '@/types';
 import EesztMarkdown from '@/components/shared/EesztMarkdown';
 
-const DOCTOR_ID = 'D-99';
+const DOCTOR_ID = import.meta.env.VITE_DOCTOR_ID || 'D-99';
 
 type FlowState = 'idle' | 'recording' | 'drafting' | 'reviewing' | 'finalizing' | 'done';
 

@@ -40,7 +40,14 @@ class OrchestratorService:
         
         loop = asyncio.get_running_loop()
         transcript_lines = await loop.run_in_executor(None, transcribe_file_with_diarization, audio_file_path)
-        raw_transcript = " ".join(transcript_lines)
+        raw_transcript = " ".join(transcript_lines).strip()
+        
+        if not raw_transcript:
+            raise ValueError(
+                "Transcription returned an empty result. "
+                "Check that SPEECH_KEY and SERVICE_REGION are set correctly in .env, "
+                "and that the audio file contains intelligible speech."
+            )
         
         available_doctor_categories = [{"doctor_id": d["doctor_id"], "specialty": d["specialty"]} for d in available_doctors]
         
@@ -64,6 +71,21 @@ class OrchestratorService:
         
         return hydrated_clinical, hydrated_patient, token_map, full_metadata
 
+    @staticmethod
+    def _build_soap_dynamic_data(clinical: dict, source_label: str = "audio consultation") -> dict:
+        """Convert the structured clinical dict into a SOAP-compatible flat dict for the PDF template."""
+        cc_list  = [f"• {c['finding']} ({c['condition_status']})" for c in clinical.get("chief_complaints", [])]
+        ast_list = [f"• {a['finding']} ({a['condition_status']})" for a in clinical.get("assessments", [])]
+        plan_list = [{"action_item": p["description"], "type": p["action_type"]} for p in clinical.get("actionables", [])]
+        return {
+            "chief_complaint": "<br>".join(cc_list) if cc_list else "None reported.",
+            "history_of_present_illness": f"Information extracted automatically from {source_label}.",
+            "vital_signs": {},
+            "physical_exam": f"Not assessed via {source_label}.",
+            "assessment": "<br>".join(ast_list) if ast_list else "Pending physician review.",
+            "plan": plan_list,
+        }
+
     def complete_consultation(
         self,
         hydrated_clinical: dict,
@@ -77,20 +99,10 @@ class OrchestratorService:
         patient_id = full_metadata["patient_id"]
         logger.info(f"Completing consultation (generating PDF) for patient {patient_id}")
         
-        soap_dynamic_data = hydrated_clinical
-        if format_id == "fmt_001":
-            cc_list = [f"• {c['finding']} ({c['condition_status']})" for c in hydrated_clinical.get("chief_complaints", [])]
-            ast_list = [f"• {a['finding']} ({a['condition_status']})" for a in hydrated_clinical.get("assessments", [])]
-            plan_list = [{"action_item": p["description"], "type": p["action_type"]} for p in hydrated_clinical.get("actionables", [])]
-            
-            soap_dynamic_data = {
-                "chief_complaint": "<br>".join(cc_list) if cc_list else "None reported.",
-                "history_of_present_illness": "Information extracted automatically from audio consultation.",
-                "vital_signs": {},
-                "physical_exam": "Not assessed via audio analysis.",
-                "assessment": "<br>".join(ast_list) if ast_list else "Pending physician review.",
-                "plan": plan_list
-            }
+        soap_dynamic_data = (
+            self._build_soap_dynamic_data(hydrated_clinical, source_label="audio consultation")
+            if format_id == "fmt_001" else hydrated_clinical
+        )
 
         doc_payload = {
             "universal_header": {
@@ -161,20 +173,10 @@ class OrchestratorService:
         )
         
         # 4. Document Generation
-        soap_dynamic_data = hydrated_clinical
-        if format_id == "fmt_001":
-            cc_list = [f"• {c['finding']} ({c['condition_status']})" for c in hydrated_clinical.get("chief_complaints", [])]
-            ast_list = [f"• {a['finding']} ({a['condition_status']})" for a in hydrated_clinical.get("assessments", [])]
-            plan_list = [{"action_item": p["description"], "type": p["action_type"]} for p in hydrated_clinical.get("actionables", [])]
-            
-            soap_dynamic_data = {
-                "chief_complaint": "<br>".join(cc_list) if cc_list else "None reported.",
-                "history_of_present_illness": "Information extracted automatically from clinical text input.",
-                "vital_signs": {},
-                "physical_exam": "Not assessed via text analysis.",
-                "assessment": "<br>".join(ast_list) if ast_list else "Pending physician review.",
-                "plan": plan_list
-            }
+        soap_dynamic_data = (
+            self._build_soap_dynamic_data(hydrated_clinical, source_label="clinical text input")
+            if format_id == "fmt_001" else hydrated_clinical
+        )
 
         doc_payload = {
             "universal_header": {
