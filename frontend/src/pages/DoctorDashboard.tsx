@@ -587,44 +587,41 @@ export default function DoctorDashboard() {
                     </div>
                 </div>
             </div>
-        </div>
 
-            {/* EHR Context Modal Overlay */ }
-    {
-        ehrModalDoc && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/20 backdrop-blur-sm"
-                onClick={() => setEhrModalDoc(null)}>
-                <div className="w-full max-w-2xl max-h-[85vh] flex flex-col bg-white border border-zinc-200 rounded-xl shadow-2xl overflow-hidden"
-                    onClick={e => e.stopPropagation()}>
-                    <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-100 bg-zinc-50/50">
-                        <div>
-                            <h3 className="text-sm font-bold text-zinc-900 font-mono tracking-tight">{ehrModalDoc.system_doc_id}</h3>
-                            <p className="text-xs text-zinc-500 font-medium uppercase tracking-widest mt-0.5">
-                                {ehrModalDoc.date !== '...' ? ehrModalDoc.date + ' · ' + ehrModalDoc.doc_type : 'Loading Document Context...'}
-                            </p>
-                        </div>
-                        <button onClick={() => setEhrModalDoc(null)} className="p-2 text-zinc-400 hover:text-zinc-900 transition-colors">
-                            <Square className="w-4 h-4" />
-                        </button>
-                    </div>
-                    <div className="p-6 overflow-y-auto bg-white min-h-[150px] relative">
-                        {isEhrModalLoading ? (
-                            <div className="absolute inset-0 flex items-center justify-center bg-white/80">
-                                <span className="w-5 h-5 border-2 border-zinc-900 border-t-transparent rounded-full animate-spin" />
+            {/* EHR Context Modal Overlay */}
+            {ehrModalDoc && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-zinc-950/20 backdrop-blur-sm"
+                    onClick={() => setEhrModalDoc(null)}>
+                    <div className="w-full max-w-2xl max-h-[85vh] flex flex-col bg-white border border-zinc-200 rounded-xl shadow-2xl overflow-hidden"
+                        onClick={e => e.stopPropagation()}>
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-100 bg-zinc-50/50">
+                            <div>
+                                <h3 className="text-sm font-bold text-zinc-900 font-mono tracking-tight">{ehrModalDoc.system_doc_id}</h3>
+                                <p className="text-xs text-zinc-500 font-medium uppercase tracking-widest mt-0.5">
+                                    {ehrModalDoc.date !== '...' ? ehrModalDoc.date + ' · ' + ehrModalDoc.doc_type : 'Loading Document Context...'}
+                                </p>
                             </div>
-                        ) : (
-                            <div className="prose prose-sm prose-zinc max-w-none 
+                            <button onClick={() => setEhrModalDoc(null)} className="p-2 text-zinc-400 hover:text-zinc-900 transition-colors">
+                                <Square className="w-4 h-4" />
+                            </button>
+                        </div>
+                        <div className="p-6 overflow-y-auto bg-white min-h-[150px] relative">
+                            {isEhrModalLoading ? (
+                                <div className="absolute inset-0 flex items-center justify-center bg-white/80">
+                                    <span className="w-5 h-5 border-2 border-zinc-900 border-t-transparent rounded-full animate-spin" />
+                                </div>
+                            ) : (
+                                <div className="prose prose-sm prose-zinc max-w-none 
                                               prose-headings:font-semibold prose-headings:tracking-tight 
                                               prose-p:leading-relaxed prose-a:text-zinc-900 prose-a:underline hover:prose-a:text-zinc-600">
-                                <EesztMarkdown content={ehrModalDoc.content || '*Document body is empty.*'} />
-                            </div>
-                        )}
+                                    <EesztMarkdown content={ehrModalDoc.content || '*Document body is empty.*'} />
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
-            </div>
-        )
-    }
-        </div >
+            )}
+        </div>
     );
 }
 
