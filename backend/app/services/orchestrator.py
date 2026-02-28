@@ -156,7 +156,8 @@ class OrchestratorService:
         # 3. Run Pipeline
         hydrated_clinical, hydrated_patient, _ = self.pipeline.run_consultation(
             raw_transcript=raw_transcript,
-            metadata_context=full_metadata
+            metadata_context=full_metadata,
+            language="en"
         )
         
         # 4. Document Generation
