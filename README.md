@@ -40,44 +40,75 @@ npm run build
 
 The codebase attempts to maintain `GUIDELINES.md` rules by storing credentials loosely from version control files via `.env` files conceptually, retaining modular React structure natively, and refraining strictly from informal emotional tags universally.
 
-# GDE MIT Mesh
+## Standard Request/Response Schema
 
-## Application
-This project is responsible for processing patient records and generating beautifully designed medical PDF documents.
+The backend provides an orchestrated endpoint for end-to-end clinical processing.
 
-## Module: Report Generator
+### Post Consultation (`/api/v1/generate-consultation`)
+Takes a medical audio recording and builds a full report by fetching context from the DB and running the LLM pipeline.
 
-The `report_generator` module operates with flexible Jinja2 templating mapped to specific Report Formats via `config/formats.json`. WeasyPrint converts the rendered HTML document cleanly into PDF.
+**Request (Multipart Form-Data)**
+| Field | Type | Description |
+|---|---|---|
+| `audio` | `File (WAV)` | Mono WAV file, 16kHz recommended. |
+| `metadata` | `JSON String` | metadata payload (see below). |
 
-### Available Formats
-1. SOAP Note (`fmt_001`)
-2. History & Physical (`fmt_002`)
-3. Discharge Summary (`fmt_003`)
-4. Consultation Report (`fmt_004`)
-5. Operative / Procedure Note (`fmt_005`)
-
-### Usage
-
-```bash
-# General Usage
-python report_generator/generate_report.py path/to/patient.json --format fmt_001 --output SOAP_123.pdf
-
-# Interactive CLI Menu
-python report_generator/generate_report.py
+**Metadata Structure**
+```json
+{
+  "patient_id": "string",
+  "doctor_id": "string",
+  "doctor_name": "string",
+  "doctor_seal": "string",
+  "encounter_date": "ISO8601 String"
+}
 ```
 
-## Module: Transcriber
-The `transcriber` module uses Azure Cognitive Services Speech SDK to take a medical audio recording (WAV) and convert it into a structured speaker-diarized text transcript. 
-
-### Configuration
-You must configure your `.env` file with your Azure credentials before using this module:
-```env
-SPEECH_KEY=your_azure_speech_key_here
-SERVICE_REGION=your_azure_region_here
+**Response (JSON)**
+```json
+{
+  "session_id": "string",
+  "status": "string",
+  "medical_report_pdf_url": "string (URL to generated PDF)",
+  "patient_summary_md": "string (Markdown content)",
+  "administrative_metadata": {
+    "extracted_at": "ISO8601 String",
+    "doctor_name": "string",
+    "doctor_seal": "string",
+    "patient_name": "string"
+  }
+}
 ```
 
-### Usage
-Run the following command against an audio file (Must be 16kHz, 16-bit, Mono WAV file for best results):
-```bash
-python transcriber/transcribe.py path/to/audio/test.wav
-```
+## Module: Orchestrator
+The `OrchestratorService` manages the workflow:
+1.  **Ingestion**: Receives audio and metadata.
+2.  **Parallel Execution**:
+    *   **Transcription**: Azure Speech (Diarized).
+    *   **Context Retrieval**: DB fetches for patient history and doctor info.
+3.  **Intelligence**: Zero-Hallucination LLM Pipeline (Presidio Scrubbing + Context Injection).
+4.  **Generation**: WeasyPrint generates PDF/MD reports.
+
+## Installation & Setup
+
+1.  **Backend Dependencies**:
+    ```bash
+    cd backend
+    uv sync
+    ```
+2.  **Environment Variables**:
+    Create a `.env` in the root with:
+    ```env
+    OPENAI_API_KEY=...
+    SPEECH_KEY=...
+    SERVICE_REGION=...
+    ```
+3.  **Seed Database**:
+    ```bash
+    export PYTHONPATH=$(pwd)
+    python app/seed.py
+    ```
+4.  **Run API**:
+    ```bash
+    python -m uvicorn app.main:app --reload
+    ```
