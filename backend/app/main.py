@@ -1,5 +1,6 @@
 import logging
 import json
+import subprocess
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form, Depends
 from fastapi.middleware.cors import CORSMiddleware
@@ -68,10 +69,18 @@ async def generate_consultation(
     Orchestrated endpoint: Ingests minimal metadata + audio, fetches context internally, returns PDF/MD links.
     """
     try:
-        # 1. Save Audio to Temp
-        audio_path = f"/tmp/incoming_{patient_id}.wav"
-        with open(audio_path, "wb") as buffer:
+        # 1. Save incoming payload to Temp (can be webm, mp4, wav, etc)
+        raw_audio_path = f"/tmp/incoming_{patient_id}_raw"
+        with open(raw_audio_path, "wb") as buffer:
             buffer.write(await audio.read())
+            
+        audio_path = f"/tmp/incoming_{patient_id}.wav"
+        
+        # Transcode to 16kHz Mono WAV (Strict Azure requirement)
+        subprocess.run(
+            ["ffmpeg", "-y", "-i", raw_audio_path, "-ar", "16000", "-ac", "1", audio_path],
+            check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+        )
         
         # 2. Run Orchestrator
         pdf_path, summary_md_path = await state.orchestrator.run_full_extraction(
